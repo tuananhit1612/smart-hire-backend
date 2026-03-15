@@ -25,8 +25,6 @@ import java.util.Objects;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    // ── 400 Bad Request ──
-
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
         log.warn("Bad request: {}", ex.getMessage());
@@ -40,7 +38,6 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(fe ->
                 fieldErrors.put(fe.getField(),
                         Objects.requireNonNullElse(fe.getDefaultMessage(), "Invalid value")));
-
         String summary = fieldErrors.size() + " validation error(s)";
         log.warn("Validation failed: {}", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -50,11 +47,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException ex) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();
-        ex.getConstraintViolations().forEach(cv -> {
-            String field = cv.getPropertyPath().toString();
-            fieldErrors.put(field, cv.getMessage());
-        });
-
+        ex.getConstraintViolations().forEach(cv -> fieldErrors.put(cv.getPropertyPath().toString(), cv.getMessage()));
         log.warn("Constraint violation: {}", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ErrorCodes.VALIDATION_FAILED, "Constraint violation", fieldErrors));
@@ -83,8 +76,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCodes.INVALID_FORMAT, msg));
     }
 
-    // ── 401 Unauthorized ──
-
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorized(UnauthorizedException ex) {
         log.warn("Unauthorized: {}", ex.getMessage());
@@ -97,8 +88,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(ErrorCodes.UNAUTHORIZED, "Invalid email or password"));
     }
-
-    // ── 403 Forbidden ──
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ApiResponse<Void>> handleForbidden(ForbiddenException ex) {
@@ -114,16 +103,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCodes.FORBIDDEN, "You do not have permission to access this resource."));
     }
 
-    // ── 404 Not Found ──
-
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNotFound(ResourceNotFoundException ex) {
         log.warn("Resource not found: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(ErrorCodes.NOT_FOUND, ex.getMessage()));
     }
-
-    // ── 405 Method Not Allowed ──
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse<Void>> handleMethodNotAllowed(HttpRequestMethodNotSupportedException ex) {
@@ -133,16 +118,12 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCodes.METHOD_NOT_ALLOWED, msg));
     }
 
-    // ── 409 Conflict ──
-
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiResponse<Void>> handleConflict(ConflictException ex) {
         log.warn("Conflict: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(ErrorCodes.CONFLICT, ex.getMessage()));
     }
-
-    // ── 413 Payload Too Large ──
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
@@ -151,8 +132,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCodes.PAYLOAD_TOO_LARGE, "File size exceeds the maximum allowed upload size"));
     }
 
-    // ── 500 Internal Server Error ──
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);
@@ -160,4 +139,3 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCodes.INTERNAL_ERROR, "An unexpected error occurred. Please try again later."));
     }
 }
-
