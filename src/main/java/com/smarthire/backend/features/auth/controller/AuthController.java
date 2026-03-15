@@ -1,9 +1,6 @@
 package com.smarthire.backend.features.auth.controller;
 
-import com.smarthire.backend.features.auth.dto.AuthResponse;
-import com.smarthire.backend.features.auth.dto.LoginRequest;
-import com.smarthire.backend.features.auth.dto.RefreshTokenRequest;
-import com.smarthire.backend.features.auth.dto.RegisterRequest;
+import com.smarthire.backend.features.auth.dto.*;
 import com.smarthire.backend.features.auth.service.AuthService;
 import com.smarthire.backend.shared.constants.ApiPaths;
 import com.smarthire.backend.shared.dto.ApiResponse;
@@ -57,6 +54,29 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(@Valid @RequestBody RefreshTokenRequest request) {
         authService.logout(request);
         return ResponseEntity.ok(ApiResponse.success("Logged out successfully", null));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Map<String, String>>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        String token = authService.forgotPassword(request);
+        // Trả token trong response (production sẽ gửi qua email)
+        return ResponseEntity.ok(ApiResponse.success("Password reset token generated",
+                Map.of("resetToken", token, "note", "In production, this token will be sent via email")));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Password reset successfully. Please login with new password.", null));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
     }
 
     @GetMapping("/me")

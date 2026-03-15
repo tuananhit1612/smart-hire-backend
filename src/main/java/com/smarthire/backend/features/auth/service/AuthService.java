@@ -1,9 +1,6 @@
 package com.smarthire.backend.features.auth.service;
 
-import com.smarthire.backend.features.auth.dto.AuthResponse;
-import com.smarthire.backend.features.auth.dto.LoginRequest;
-import com.smarthire.backend.features.auth.dto.RefreshTokenRequest;
-import com.smarthire.backend.features.auth.dto.RegisterRequest;
+import com.smarthire.backend.features.auth.dto.*;
 
 public interface AuthService {
 
@@ -14,4 +11,11 @@ public interface AuthService {
     AuthResponse refreshToken(RefreshTokenRequest request);
 
     void logout(RefreshTokenRequest request);
+
+    String forgotPassword(ForgotPasswordRequest request);
+
+    void resetPassword(ResetPasswordRequest request);
+
+    void changePassword(ChangePasswordRequest request);
 }
+

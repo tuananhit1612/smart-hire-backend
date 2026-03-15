@@ -2,16 +2,17 @@ package com.smarthire.backend.features.auth.service;
 
 import com.smarthire.backend.core.exception.BadRequestException;
 import com.smarthire.backend.core.security.JwtUtil;
-import com.smarthire.backend.features.auth.dto.AuthResponse;
-import com.smarthire.backend.features.auth.dto.LoginRequest;
-import com.smarthire.backend.features.auth.dto.RefreshTokenRequest;
-import com.smarthire.backend.features.auth.dto.RegisterRequest;
+import com.smarthire.backend.core.security.SecurityUtils;
+import com.smarthire.backend.features.auth.dto.*;
+import com.smarthire.backend.features.auth.entity.PasswordResetToken;
 import com.smarthire.backend.features.auth.entity.RefreshToken;
 import com.smarthire.backend.features.auth.entity.User;
+import com.smarthire.backend.features.auth.repository.PasswordResetTokenRepository;
 import com.smarthire.backend.features.auth.repository.RefreshTokenRepository;
 import com.smarthire.backend.features.auth.repository.UserRepository;
 import com.smarthire.backend.shared.enums.Role;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -25,10 +26,12 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
@@ -115,6 +118,80 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    @Override
+    @Transactional
+    public String forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadRequestException("No account found with this email"));
+
+        // Hủy tất cả token cũ
+        passwordResetTokenRepository.invalidateAllByUserId(user.getId());
+
+        // Tạo token mới, hết hạn sau 15 phút
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .user(user)
+                .token(token)
+                .expiresAt(LocalDateTime.now().plusMinutes(15))
+                .isUsed(false)
+                .build();
+
+        passwordResetTokenRepository.save(resetToken);
+
+        // TODO: Gửi email chứa token cho user (tích hợp email service sau)
+        log.info("Password reset token generated for {}: {}", user.getEmail(), token);
+
+        return token;
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        PasswordResetToken resetToken = passwordResetTokenRepository
+                .findByTokenAndIsUsedFalse(request.getToken())
+                .orElseThrow(() -> new BadRequestException("Invalid or already used reset token"));
+
+        if (resetToken.isExpired()) {
+            resetToken.setIsUsed(true);
+            passwordResetTokenRepository.save(resetToken);
+            throw new BadRequestException("Reset token has expired. Please request a new one.");
+        }
+
+        // Đánh dấu token đã dùng
+        resetToken.setIsUsed(true);
+        passwordResetTokenRepository.save(resetToken);
+
+        // Cập nhật mật khẩu
+        User user = resetToken.getUser();
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Revoke tất cả refresh token (force re-login)
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+
+        log.info("Password reset successfully for user: {}", user.getEmail());
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        User user = SecurityUtils.getCurrentUser();
+
+        // Kiểm tra mật khẩu hiện tại
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new BadRequestException("Current password is incorrect");
+        }
+
+        // Cập nhật mật khẩu mới
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Revoke tất cả refresh token (force re-login)
+        refreshTokenRepository.revokeAllByUserId(user.getId());
+
+        log.info("Password changed successfully for user: {}", user.getEmail());
+    }
+
     private String createRefreshToken(User user) {
         String token = UUID.randomUUID().toString();
         long expirationMs = refreshTokenExpiration;
@@ -154,3 +231,4 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 }
+
