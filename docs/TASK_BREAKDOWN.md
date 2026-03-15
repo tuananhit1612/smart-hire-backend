@@ -2,7 +2,6 @@
 
 > Project: SmartHire Backend
 > Stack: Spring Boot 4, Java 25, MySQL, JWT, WebSocket, Ollama
-
 ---
 
 ## MODULE: AUTHENTICATION & USER
@@ -85,5 +84,4 @@
 | QA003   | Implement API documentation artifacts | Hoan thien Swagger annotation va Postman collection cho toan bo API.       |
 
 ---
-
 _Tai lieu cap nhat: 2026-03-12 | SmartHire Backend Team_
