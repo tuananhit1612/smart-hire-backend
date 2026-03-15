@@ -40,7 +40,6 @@ public class GlobalExceptionHandler {
         ex.getBindingResult().getFieldErrors().forEach(fe ->
                 fieldErrors.put(fe.getField(),
                         Objects.requireNonNullElse(fe.getDefaultMessage(), "Invalid value")));
-
         String summary = fieldErrors.size() + " validation error(s)";
         log.warn("Validation failed: {}", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -54,7 +53,6 @@ public class GlobalExceptionHandler {
             String field = cv.getPropertyPath().toString();
             fieldErrors.put(field, cv.getMessage());
         });
-
         log.warn("Constraint violation: {}", fieldErrors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ErrorCodes.VALIDATION_FAILED, "Constraint violation", fieldErrors));
@@ -160,4 +158,3 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ErrorCodes.INTERNAL_ERROR, "An unexpected error occurred. Please try again later."));
     }
 }
-
