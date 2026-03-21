@@ -1,7 +1,6 @@
 package com.smarthire.backend.features.application.service;
 
 import com.smarthire.backend.core.exception.BadRequestException;
-import com.smarthire.backend.core.exception.ForbiddenException;
 import com.smarthire.backend.core.exception.ResourceNotFoundException;
 import com.smarthire.backend.core.security.SecurityUtils;
 import com.smarthire.backend.features.application.dto.ApplicationResponse;
@@ -11,6 +10,8 @@ import com.smarthire.backend.features.application.entity.Application;
 import com.smarthire.backend.features.application.entity.ApplicationStageHistory;
 import com.smarthire.backend.features.application.repository.ApplicationRepository;
 import com.smarthire.backend.features.auth.entity.User;
+import com.smarthire.backend.features.candidate.repository.CandidateProfileRepository;
+import com.smarthire.backend.features.notification.service.RealtimeEventService;
 import com.smarthire.backend.shared.enums.ApplicationStage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,8 @@ import java.util.List;
 public class ApplicationServiceImpl implements ApplicationService {
 
     private final ApplicationRepository applicationRepository;
+    private final RealtimeEventService realtimeEventService;
+    private final CandidateProfileRepository candidateProfileRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -71,7 +74,13 @@ public class ApplicationServiceImpl implements ApplicationService {
         app.setStage(newStage);
 
         Application saved = applicationRepository.save(app);
-        log.info("Application {} stage changed: {} -> {} by {}", applicationId, oldStage, newStage, currentUser.getEmail());
+        log.info("Application {} stage changed: {} -> {} by {}", applicationId, oldStage, newStage,
+                currentUser.getEmail());
+
+        // ── Phát realtime event qua WebSocket ──
+        Long candidateUserId = lookupCandidateUserId(saved.getCandidateProfileId());
+        realtimeEventService.publishStageChanged(saved, oldStage, newStage, currentUser.getId(), candidateUserId);
+
         return toResponse(saved);
     }
 
@@ -86,8 +95,19 @@ public class ApplicationServiceImpl implements ApplicationService {
         try {
             return ApplicationStage.valueOf(stage.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid stage. Must be: APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED");
+            throw new BadRequestException(
+                    "Invalid stage. Must be: APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED");
         }
+    }
+
+    /**
+     * Lookup userId từ candidateProfileId.
+     * Trả về null nếu không tìm thấy (event vẫn broadcast topic nhưng không gửi per-user).
+     */
+    private Long lookupCandidateUserId(Long candidateProfileId) {
+        return candidateProfileRepository.findById(candidateProfileId)
+                .map(profile -> profile.getUser().getId())
+                .orElse(null);
     }
 
     private ApplicationResponse toResponse(Application app) {
