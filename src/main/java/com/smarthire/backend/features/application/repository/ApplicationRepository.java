@@ -17,4 +17,12 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     List<Application> findByCandidateProfileIdOrderByAppliedAtDesc(Long candidateProfileId);
 
     boolean existsByJobIdAndCandidateProfileId(Long jobId, Long candidateProfileId);
+
+    // ── Dashboard queries ──
+
+    long countByJobId(Long jobId);
+
+    long countByJobIdAndStage(Long jobId, ApplicationStage stage);
+
+    List<Application> findByJobIdIn(List<Long> jobIds);
 }
