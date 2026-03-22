@@ -31,3 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment & Secrets ###
+.env
+.env.local
+.env.production
+
+### Uploads ###
+uploads/
+
+### Logs ###
+*.log
+logs/
+

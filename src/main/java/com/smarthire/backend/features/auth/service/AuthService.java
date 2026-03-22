@@ -12,7 +12,7 @@ public interface AuthService {
 
     void logout(RefreshTokenRequest request);
 
-    String forgotPassword(ForgotPasswordRequest request);
+    void forgotPassword(ForgotPasswordRequest request);
 
     void resetPassword(ResetPasswordRequest request);
 
