@@ -11,6 +11,8 @@ import com.smarthire.backend.features.auth.repository.PasswordResetTokenReposito
 import com.smarthire.backend.features.auth.repository.RefreshTokenRepository;
 import com.smarthire.backend.features.auth.repository.UserRepository;
 import com.smarthire.backend.shared.enums.Role;
+import com.smarthire.backend.shared.service.EmailService;
+import com.smarthire.backend.shared.service.EmailTemplates;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,9 +37,13 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
+    private final EmailService emailService;
 
     @Value("${app.jwt.refresh-token-expiration}")
     private long refreshTokenExpiration;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     @Override
     @Transactional
@@ -120,7 +126,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public String forgotPassword(ForgotPasswordRequest request) {
+    public void forgotPassword(ForgotPasswordRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("No account found with this email"));
 
@@ -138,10 +144,13 @@ public class AuthServiceImpl implements AuthService {
 
         passwordResetTokenRepository.save(resetToken);
 
-        // TODO: Gửi email chứa token cho user (tích hợp email service sau)
-        log.info("Password reset token generated for {}: {}", user.getEmail(), token);
+        // Gửi email chứa link reset password
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
+        String userName = user.getFullName() != null ? user.getFullName() : user.getEmail();
+        String htmlContent = EmailTemplates.buildResetPasswordEmail(userName, resetLink);
+        emailService.sendHtmlEmail(user.getEmail(), "[SmartHire] Đặt lại mật khẩu", htmlContent);
 
-        return token;
+        log.info("Password reset email sent to {}", user.getEmail());
     }
 
     @Override
