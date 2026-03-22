@@ -4,6 +4,8 @@ import com.smarthire.backend.features.job.entity.Job;
 import com.smarthire.backend.shared.enums.JobStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -23,4 +25,12 @@ public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificatio
 
     long countByCreatedByIdAndStatus(Long userId, JobStatus status);
     long countByStatus(JobStatus status);
+
+    // ── Report export (eager fetch) ──
+
+    @Query("SELECT j FROM Job j LEFT JOIN FETCH j.company")
+    List<Job> findAllWithCompany();
+
+    @Query("SELECT j FROM Job j LEFT JOIN FETCH j.company WHERE j.createdBy.id = :userId ORDER BY j.createdAt DESC")
+    List<Job> findByCreatedByIdWithCompany(@Param("userId") Long userId);
 }

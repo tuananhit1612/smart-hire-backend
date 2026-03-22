@@ -23,47 +23,52 @@ public class ReportExportServiceImpl implements ReportExportService {
     private final JobRepository jobRepository;
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final String UTF8_BOM = "\uFEFF";
 
-    // ── Admin: all applications ─────────────────────────────────
+    // ── Admin: all applications ──
 
     @Override
+    @Transactional(readOnly = true)
     public byte[] exportApplicationsCsv() {
-        List<Application> apps = applicationRepository.findAll();
+        List<Application> apps = applicationRepository.findAllWithJob();
         return buildApplicationsCsv(apps);
     }
 
-    // ── Admin: all jobs ─────────────────────────────────────────
+    // ── Admin: all jobs ──
 
     @Override
+    @Transactional(readOnly = true)
     public byte[] exportJobsCsv() {
-        List<Job> jobs = jobRepository.findAll();
+        List<Job> jobs = jobRepository.findAllWithCompany();
         return buildJobsCsv(jobs);
     }
 
-    // ── HR: own applications ────────────────────────────────────
+    // ── HR: own applications ──
 
     @Override
+    @Transactional(readOnly = true)
     public byte[] exportHrApplicationsCsv(Long userId) {
-        List<Job> hrJobs = jobRepository.findByCreatedByIdOrderByCreatedAtDesc(userId);
-        List<Long> jobIds = hrJobs.stream().map(Job::getId).toList();
+        List<Job> jobs = jobRepository.findByCreatedByIdWithCompany(userId);
+        List<Long> jobIds = jobs.stream().map(Job::getId).toList();
 
-        if (jobIds.isEmpty()) {
-            return buildApplicationsCsv(List.of());
-        }
-        List<Application> apps = applicationRepository.findByJobIdIn(jobIds);
+        List<Application> apps = jobIds.isEmpty()
+                ? List.of()
+                : applicationRepository.findByJobIdInWithJob(jobIds);
+
         return buildApplicationsCsv(apps);
     }
 
-    // ── HR: own jobs ────────────────────────────────────────────
+    // ── HR: own jobs ──
 
     @Override
+    @Transactional(readOnly = true)
     public byte[] exportHrJobsCsv(Long userId) {
-        List<Job> jobs = jobRepository.findByCreatedByIdOrderByCreatedAtDesc(userId);
+        List<Job> jobs = jobRepository.findByCreatedByIdWithCompany(userId);
         return buildJobsCsv(jobs);
     }
 
-    // ── CSV builders ────────────────────────────────────────────
+    // ── CSV builders ──
 
     private byte[] buildApplicationsCsv(List<Application> apps) {
         StringBuilder sb = new StringBuilder(UTF8_BOM);
@@ -73,7 +78,7 @@ public class ReportExportServiceImpl implements ReportExportService {
             sb.append(app.getId()).append(',');
             sb.append(escapeCsv(app.getJob().getTitle())).append(',');
             sb.append(app.getCandidateProfileId()).append(',');
-            sb.append(app.getStage()).append(',');
+            sb.append(app.getStage().name()).append(',');
             sb.append(app.getAppliedAt() != null ? app.getAppliedAt().format(FMT) : "").append(',');
             sb.append(app.getUpdatedAt() != null ? app.getUpdatedAt().format(FMT) : "");
             sb.append('\n');
@@ -84,19 +89,20 @@ public class ReportExportServiceImpl implements ReportExportService {
 
     private byte[] buildJobsCsv(List<Job> jobs) {
         StringBuilder sb = new StringBuilder(UTF8_BOM);
-        sb.append("ID,Title,Company,Status,Type,Level,Location,Salary Min,Salary Max,Deadline,Created At\n");
+        sb.append("ID,Title,Company,Status,Type,Level,Location,Salary Min,Salary Max,Currency,Deadline,Created At\n");
 
         for (Job job : jobs) {
             sb.append(job.getId()).append(',');
             sb.append(escapeCsv(job.getTitle())).append(',');
             sb.append(escapeCsv(job.getCompany() != null ? job.getCompany().getName() : "")).append(',');
-            sb.append(job.getStatus()).append(',');
-            sb.append(job.getJobType()).append(',');
-            sb.append(job.getJobLevel()).append(',');
+            sb.append(job.getStatus().name()).append(',');
+            sb.append(job.getJobType().name()).append(',');
+            sb.append(job.getJobLevel().name()).append(',');
             sb.append(escapeCsv(job.getLocation() != null ? job.getLocation() : "")).append(',');
             sb.append(job.getSalaryMin() != null ? job.getSalaryMin().toPlainString() : "").append(',');
             sb.append(job.getSalaryMax() != null ? job.getSalaryMax().toPlainString() : "").append(',');
-            sb.append(job.getDeadline() != null ? job.getDeadline().toString() : "").append(',');
+            sb.append(job.getSalaryCurrency()).append(',');
+            sb.append(job.getDeadline() != null ? job.getDeadline().format(DATE_FMT) : "").append(',');
             sb.append(job.getCreatedAt() != null ? job.getCreatedAt().format(FMT) : "");
             sb.append('\n');
         }
