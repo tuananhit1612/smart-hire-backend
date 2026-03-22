@@ -7,17 +7,21 @@ import com.smarthire.backend.core.security.SecurityUtils;
 import com.smarthire.backend.features.application.entity.Application;
 import com.smarthire.backend.features.application.repository.ApplicationRepository;
 import com.smarthire.backend.features.auth.entity.User;
+import com.smarthire.backend.features.candidate.entity.CandidateProfile;
+import com.smarthire.backend.features.candidate.repository.CandidateProfileRepository;
 import com.smarthire.backend.features.interview.dto.CreateInterviewRequest;
 import com.smarthire.backend.features.interview.dto.InterviewResponse;
 import com.smarthire.backend.features.interview.dto.UpdateInterviewRequest;
 import com.smarthire.backend.features.interview.entity.InterviewRoom;
 import com.smarthire.backend.features.interview.repository.InterviewRoomRepository;
 import com.smarthire.backend.shared.enums.InterviewStatus;
+import com.smarthire.backend.shared.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +32,8 @@ public class InterviewServiceImpl implements InterviewService {
 
     private final InterviewRoomRepository interviewRoomRepository;
     private final ApplicationRepository applicationRepository;
+    private final CandidateProfileRepository candidateProfileRepository;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -52,7 +58,59 @@ public class InterviewServiceImpl implements InterviewService {
 
         InterviewRoom saved = interviewRoomRepository.save(room);
         log.info("Interview room created: {} (code={}) by {}", saved.getRoomName(), roomCode, currentUser.getEmail());
+
+        // Send interview invitation email to candidate
+        sendInterviewNotification(saved, application);
+
         return toResponse(saved);
+    }
+
+    private void sendInterviewNotification(InterviewRoom room, Application application) {
+        try {
+            CandidateProfile profile = candidateProfileRepository.findById(application.getCandidateProfileId())
+                    .orElse(null);
+            if (profile == null || profile.getUser() == null) {
+                log.warn("Cannot send interview email: candidate profile {} not found", application.getCandidateProfileId());
+                return;
+            }
+
+            String email = profile.getUser().getEmail();
+            String candidateName = profile.getUser().getFullName();
+            String jobTitle = application.getJob().getTitle();
+            String scheduledTime = room.getScheduledAt() != null
+                    ? room.getScheduledAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                    : "Chưa xác định";
+            String meetingLink = room.getMeetingUrl() != null ? room.getMeetingUrl() : "Sẽ được cập nhật sau";
+
+            String subject = "[SmartHire] 📋 Lịch phỏng vấn - " + jobTitle;
+            String body = """
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+                        <h2 style="color: #2563eb;">SmartHire</h2>
+                        <p>Xin chào <strong>%s</strong>,</p>
+                        <p>Bạn đã được mời tham gia buổi phỏng vấn cho vị trí <strong>%s</strong>.</p>
+                        <table style="border-collapse: collapse; margin: 16px 0;">
+                            <tr><td style="padding: 8px; color: #666;">Phòng:</td><td style="padding: 8px; font-weight: bold;">%s</td></tr>
+                            <tr><td style="padding: 8px; color: #666;">Thời gian:</td><td style="padding: 8px; font-weight: bold;">%s</td></tr>
+                            <tr><td style="padding: 8px; color: #666;">Thời lượng:</td><td style="padding: 8px; font-weight: bold;">%d phút</td></tr>
+                            <tr><td style="padding: 8px; color: #666;">Link:</td><td style="padding: 8px;">%s</td></tr>
+                        </table>
+                        <p>Vui lòng đăng nhập vào hệ thống để xem chi tiết và chuẩn bị cho buổi phỏng vấn.</p>
+                        <br/>
+                        <p>Trân trọng,<br/><strong>Đội ngũ SmartHire</strong></p>
+                    </div>
+                    """.formatted(
+                    candidateName != null ? candidateName : "bạn",
+                    jobTitle,
+                    room.getRoomName(),
+                    scheduledTime,
+                    room.getDurationMinutes(),
+                    meetingLink
+            );
+
+            emailService.sendHtmlEmail(email, subject, body);
+        } catch (Exception e) {
+            log.error("Failed to send interview notification for room {}: {}", room.getId(), e.getMessage());
+        }
     }
 
     @Override

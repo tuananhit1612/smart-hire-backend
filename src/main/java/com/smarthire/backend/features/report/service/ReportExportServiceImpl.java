@@ -16,6 +16,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional(readOnly = true)
 public class ReportExportServiceImpl implements ReportExportService {
 
     private final ApplicationRepository applicationRepository;

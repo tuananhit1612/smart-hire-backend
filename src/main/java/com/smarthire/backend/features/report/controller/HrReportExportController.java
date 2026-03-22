@@ -19,22 +19,23 @@ public class HrReportExportController {
     private final ReportExportService reportExportService;
 
     @GetMapping("/applications/csv")
-    public ResponseEntity<byte[]> exportApplicationsCsv() {
+    public ResponseEntity<byte[]> exportHrApplicationsCsv() {
         Long userId = SecurityUtils.getCurrentUserId();
         byte[] csv = reportExportService.exportHrApplicationsCsv(userId);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=hr_applications_report.csv")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(csv);
+        return buildCsvResponse(csv, "hr_applications_report.csv");
     }
 
     @GetMapping("/jobs/csv")
-    public ResponseEntity<byte[]> exportJobsCsv() {
+    public ResponseEntity<byte[]> exportHrJobsCsv() {
         Long userId = SecurityUtils.getCurrentUserId();
         byte[] csv = reportExportService.exportHrJobsCsv(userId);
+        return buildCsvResponse(csv, "hr_jobs_report.csv");
+    }
+
+    private ResponseEntity<byte[]> buildCsvResponse(byte[] data, String filename) {
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=hr_jobs_report.csv")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(csv);
+                .body(data);
     }
 }

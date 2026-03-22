@@ -20,18 +20,19 @@ public class ReportExportController {
     @GetMapping("/applications/csv")
     public ResponseEntity<byte[]> exportApplicationsCsv() {
         byte[] csv = reportExportService.exportApplicationsCsv();
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=applications_report.csv")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(csv);
+        return buildCsvResponse(csv, "applications_report.csv");
     }
 
     @GetMapping("/jobs/csv")
     public ResponseEntity<byte[]> exportJobsCsv() {
         byte[] csv = reportExportService.exportJobsCsv();
+        return buildCsvResponse(csv, "jobs_report.csv");
+    }
+
+    private ResponseEntity<byte[]> buildCsvResponse(byte[] data, String filename) {
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=jobs_report.csv")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(csv);
+                .body(data);
     }
 }
