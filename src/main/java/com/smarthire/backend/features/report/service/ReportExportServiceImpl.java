@@ -77,7 +77,7 @@ public class ReportExportServiceImpl implements ReportExportService {
         for (Application app : apps) {
             sb.append(app.getId()).append(',');
             sb.append(escapeCsv(app.getJob().getTitle())).append(',');
-            sb.append(app.getCandidateProfileId()).append(',');
+            sb.append(app.getCandidateProfile().getId()).append(',');
             sb.append(app.getStage().name()).append(',');
             sb.append(app.getAppliedAt() != null ? app.getAppliedAt().format(FMT) : "").append(',');
             sb.append(app.getUpdatedAt() != null ? app.getUpdatedAt().format(FMT) : "");

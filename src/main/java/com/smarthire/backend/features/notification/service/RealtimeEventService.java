@@ -99,7 +99,7 @@ public class RealtimeEventService {
                 "applicationId", app.getId(),
                 "jobId", app.getJob().getId(),
                 "jobTitle", app.getJob().getTitle(),
-                "candidateProfileId", app.getCandidateProfileId(),
+                "candidateProfileId", app.getCandidateProfile().getId(),
                 "stage", app.getStage().name()
         );
 

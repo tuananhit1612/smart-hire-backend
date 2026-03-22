@@ -67,10 +67,10 @@ public class InterviewServiceImpl implements InterviewService {
 
     private void sendInterviewNotification(InterviewRoom room, Application application) {
         try {
-            CandidateProfile profile = candidateProfileRepository.findById(application.getCandidateProfileId())
+            CandidateProfile profile = candidateProfileRepository.findById(application.getCandidateProfile().getId())
                     .orElse(null);
             if (profile == null || profile.getUser() == null) {
-                log.warn("Cannot send interview email: candidate profile {} not found", application.getCandidateProfileId());
+                log.warn("Cannot send interview email: candidate profile {} not found", application.getCandidateProfile().getId());
                 return;
             }
 

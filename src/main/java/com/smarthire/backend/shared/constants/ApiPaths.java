@@ -19,5 +19,4 @@ public final class ApiPaths {
     public static final String REPORTS = "/reports";
     public static final String CANDIDATE = BASE + "/candidate";
     public static final String CANDIDATE_PROFILE = CANDIDATE + "/profile";
-    public static final String REPORTS = "/reports";
 }

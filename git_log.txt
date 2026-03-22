@@ -1,0 +1,10 @@
+﻿a8fd563 fix(application): resolve API issues and prepare for merge
+3ec8441 feat(application): resolve conflicts and integrate BE020 & BE021 features
+1a597f3 Merge pull request #24 from tuananhit1612/feature/ADV001-integrate-email-forgot-password
+0a5bb78 Merge branch 'develop' into feature/ADV001-integrate-email-forgot-password
+ff83b95 feat(ADV001): integrate email service for forgot password flow
+771229e Merge pull request #23 from tuananhit1612/feature/BE024-email-notification-service
+f5806d3 Merge branch 'develop' into feature/BE024-email-notification-service
+914fcb2 feat(BE024,BE027): add email notification service and report export API
+7ddbb7d Merge pull request #22 from tuananhit1612/feature/BE027-reporting-export-api
+d9f316a Merge pull request #14 from tuananhit1612/feature/BE019-implement-cv-builder-api
