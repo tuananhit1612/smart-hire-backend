@@ -21,4 +21,8 @@ public class HrDashboardResponse {
 
     private Double hireRate;
     private Double rejectRate;
+
+    private List<WeeklyTrendItem> weeklyTrend;
+    private List<TopJobItem> topJobs;
+    private List<RecentActivityItem> recentActivities;
 }
