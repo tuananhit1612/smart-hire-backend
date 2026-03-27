@@ -18,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -120,6 +119,7 @@ public class HrDashboardServiceImpl implements HrDashboardService {
 
     private List<StageFunnelItem> buildFunnel(List<Application> apps, long total) {
         Map<ApplicationStage, Long> countMap = apps.stream()
+                .filter(a -> a.getStage() != null)
                 .collect(Collectors.groupingBy(Application::getStage, Collectors.counting()));
 
         return Arrays.stream(ApplicationStage.values())

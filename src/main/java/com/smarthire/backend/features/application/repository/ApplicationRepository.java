@@ -15,6 +15,8 @@ import java.util.List;
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
     boolean existsByJobIdAndCandidateProfileId(Long jobId, Long candidateProfileId);
 
+    Page<Application> findByJobId(Long jobId, Pageable pageable);
+
     Page<Application> findByCandidateProfileId(Long candidateProfileId, Pageable pageable);
 
     List<Application> findByCandidateProfileIdOrderByAppliedAtDesc(Long candidateProfileId);

@@ -90,6 +90,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     private List<StageFunnelItem> buildFunnel(List<Application> apps, long total) {
         Map<ApplicationStage, Long> countMap = apps.stream()
+                .filter(a -> a.getStage() != null)
                 .collect(Collectors.groupingBy(Application::getStage, Collectors.counting()));
 
         return Arrays.stream(ApplicationStage.values())

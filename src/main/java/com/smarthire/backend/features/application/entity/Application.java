@@ -45,6 +45,17 @@ public class Application {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @OneToOne(mappedBy = "application", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private ApplicationAiResult aiResult;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<ApplicationNote> notes = new java.util.ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<ApplicationStageHistory> history = new java.util.ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         appliedAt = LocalDateTime.now();
