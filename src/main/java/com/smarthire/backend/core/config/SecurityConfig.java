@@ -54,7 +54,9 @@ public class SecurityConfig {
                                 ApiPaths.AUTH + "/login",
                                 ApiPaths.AUTH + "/refresh-token",
                                 ApiPaths.AUTH + "/forgot-password",
-                                ApiPaths.AUTH + "/reset-password")
+                                ApiPaths.AUTH + "/reset-password",
+                                ApiPaths.AUTH + "/verify-reset-token",
+                                ApiPaths.AUTH + "/test-token")
                         .permitAll()
 
                         // ── Swagger / OpenAPI ──

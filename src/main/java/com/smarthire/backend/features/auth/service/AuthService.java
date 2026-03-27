@@ -16,6 +16,8 @@ public interface AuthService {
 
     void resetPassword(ResetPasswordRequest request);
 
+    void verifyResetToken(String token);
+
     void changePassword(ChangePasswordRequest request);
 }
 

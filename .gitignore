@@ -36,6 +36,8 @@ build/
 .env
 .env.local
 .env.production
+application-local.properties
+**/application-local.properties
 
 ### Uploads ###
 uploads/

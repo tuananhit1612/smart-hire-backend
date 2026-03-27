@@ -65,6 +65,14 @@ public class AuthController {
                 "If an account with that email exists, a password reset link has been sent.", null));
     }
 
+    @GetMapping("/verify-reset-token")
+    @Operation(summary = "Verify reset token", description = "Checks if a reset password token is valid, used, or expired")
+    public ResponseEntity<ApiResponse<Void>> verifyResetToken(
+            @org.springframework.web.bind.annotation.RequestParam String token) {
+        authService.verifyResetToken(token);
+        return ResponseEntity.ok(ApiResponse.success("Reset token is valid.", null));
+    }
+
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {

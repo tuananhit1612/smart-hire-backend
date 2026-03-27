@@ -154,6 +154,18 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public void verifyResetToken(String token) {
+        PasswordResetToken resetToken = passwordResetTokenRepository
+                .findByTokenAndIsUsedFalse(token)
+                .orElseThrow(() -> new BadRequestException("Invalid or already used reset token"));
+
+        if (resetToken.isExpired()) {
+            throw new BadRequestException("Reset token has expired. Please request a new one.");
+        }
+    }
+
+    @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
         PasswordResetToken resetToken = passwordResetTokenRepository
