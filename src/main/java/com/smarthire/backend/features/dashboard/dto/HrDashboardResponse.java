@@ -25,4 +25,7 @@ public class HrDashboardResponse {
     private List<WeeklyTrendItem> weeklyTrend;
     private List<TopJobItem> topJobs;
     private List<RecentActivityItem> recentActivities;
+
+    private List<PassRateRow> passRates;
+    private List<MissingSkill> missingSkills;
 }

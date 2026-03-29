@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 public class CreateCompanyRequest {
@@ -17,4 +19,13 @@ public class CreateCompanyRequest {
     private String description;
     private String address;
     private String city;
+
+    private String tagline;
+    private String email;
+    private String phone;
+    private String founded;
+    private String coverUrl;
+    private List<String> techStack;
+    private List<CompanyBenefitDto> benefits;
+    private List<CompanySocialLinkDto> socialLinks;
 }

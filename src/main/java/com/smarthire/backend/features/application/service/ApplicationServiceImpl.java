@@ -261,8 +261,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     // ── Helpers ──
 
     private void sendStageNotification(Application app, ApplicationStage oldStage, ApplicationStage newStage) {
-        if (newStage != ApplicationStage.OFFER
-                && newStage != ApplicationStage.HIRED
+        if (newStage != ApplicationStage.HIRED
                 && newStage != ApplicationStage.REJECTED) {
             return;
         }
@@ -287,7 +286,6 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private String buildStageSubject(ApplicationStage stage, String jobTitle) {
         return switch (stage) {
-            case OFFER   -> "[SmartHire] 🎉 Bạn nhận được đề nghị công việc - " + jobTitle;
             case HIRED   -> "[SmartHire] ✅ Chúc mừng bạn đã được tuyển dụng - " + jobTitle;
             case REJECTED -> "[SmartHire] Kết quả ứng tuyển - " + jobTitle;
             default -> "[SmartHire] Cập nhật trạng thái ứng tuyển - " + jobTitle;
@@ -296,7 +294,6 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private String buildStageEmailBody(String candidateName, String jobTitle, ApplicationStage stage) {
         String message = switch (stage) {
-            case OFFER   -> "Chúng tôi vui mừng thông báo bạn đã nhận được <strong>đề nghị công việc</strong> cho vị trí <strong>" + jobTitle + "</strong>. Vui lòng đăng nhập vào hệ thống để xem chi tiết.";
             case HIRED   -> "Chúc mừng! Bạn đã chính thức được <strong>tuyển dụng</strong> cho vị trí <strong>" + jobTitle + "</strong>. Chào mừng bạn đến với đội ngũ!";
             case REJECTED -> "Cảm ơn bạn đã quan tâm đến vị trí <strong>" + jobTitle + "</strong>. Sau khi xem xét kỹ lưỡng, chúng tôi rất tiếc phải thông báo rằng hồ sơ của bạn chưa phù hợp trong đợt tuyển dụng này. Chúng tôi khuyến khích bạn tiếp tục theo dõi các cơ hội khác.";
             default -> "Trạng thái ứng tuyển của bạn cho vị trí <strong>" + jobTitle + "</strong> đã được cập nhật.";
@@ -323,7 +320,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         try {
             return ApplicationStage.valueOf(stage.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid stage. Must be: APPLIED, SCREENING, INTERVIEW, OFFER, HIRED, REJECTED");
+            throw new BadRequestException("Invalid stage. Must be: APPLIED, INTERVIEW, HIRED, REJECTED");
         }
     }
 

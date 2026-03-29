@@ -24,6 +24,10 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     List<Application> findByJobIdAndStageOrderByAppliedAtDesc(Long jobId, ApplicationStage stage);
 
     List<Application> findByJobIdOrderByAppliedAtDesc(Long jobId);
+    
+    // ── Global Pipeline query ──
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"job", "job.company"})
+    List<Application> findByJob_CreatedBy_IdOrderByAppliedAtDesc(Long employerId);
 
     // ── Dashboard queries ──
 

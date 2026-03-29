@@ -11,12 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import com.smarthire.backend.shared.constants.ApiPaths;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/applications")
+@RequestMapping(ApiPaths.APPLICATIONS)
 @RequiredArgsConstructor
 @Tag(name = "Applications", description = "APIs for Job Applications")
 public class ApplicationController {

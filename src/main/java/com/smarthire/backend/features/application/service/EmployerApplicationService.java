@@ -4,8 +4,12 @@ import com.smarthire.backend.features.application.dto.ChangeStageRequest;
 import com.smarthire.backend.features.application.dto.employer.*;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 public interface EmployerApplicationService {
     ApplicantListResponse getApplicantsByJob(Long jobId, Long employerId, String search, String sortBy, Pageable pageable);
+    
+    List<EmployerApplicationResponse> getAllApplicantsForEmployer(Long employerId);
     
     EmployerApplicationResponse getApplicantDetail(Long jobId, Long applicantId, Long employerId);
     
