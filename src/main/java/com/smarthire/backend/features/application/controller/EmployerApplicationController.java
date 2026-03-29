@@ -13,13 +13,22 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/v1/employer/jobs")
+@RequestMapping("/api/employer/jobs")
 @RequiredArgsConstructor
 @Tag(name = "Employer Applications", description = "APIs for Employer to manage and view applicants with AI Analysis")
 public class EmployerApplicationController {
 
     private final EmployerApplicationService employerApplicationService;
+
+    @GetMapping("/applications/all")
+    @Operation(summary = "Get all applicants across all jobs", description = "Retrieves a list of all applicants for the current employer")
+    public ResponseEntity<ApiResponse<List<EmployerApplicationResponse>>> getAllApplicants() {
+        Long employerId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.success(employerApplicationService.getAllApplicantsForEmployer(employerId)));
+    }
 
     @GetMapping("/{jobId}/applicants")
     @Operation(summary = "Get list of applicants for a job", description = "Retrieves filtered and sorted list of applicants")

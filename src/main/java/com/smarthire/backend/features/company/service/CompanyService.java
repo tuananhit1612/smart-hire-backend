@@ -21,5 +21,7 @@ public interface CompanyService {
 
     CompanyResponse uploadLogo(Long id, MultipartFile file);
 
+    CompanyResponse uploadCover(Long id, MultipartFile file);
+
     void deleteCompany(Long id);
 }

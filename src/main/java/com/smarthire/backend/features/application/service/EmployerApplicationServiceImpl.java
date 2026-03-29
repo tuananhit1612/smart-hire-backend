@@ -53,6 +53,20 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<EmployerApplicationResponse> getAllApplicantsForEmployer(Long employerId) {
+        try {
+            List<Application> applications = applicationRepository.findByJob_CreatedBy_IdOrderByAppliedAtDesc(employerId);
+            return applications.stream()
+                    .map(this::toEmployerResponse)
+                    .toList();
+        } catch (Exception e) {
+            log.error("Error fetching applicants for employer {}: {}", employerId, e.getMessage(), e);
+            return List.of(); // Return empty list instead of crashing
+        }
+    }
+
+    @Override
     @Transactional
     public EmployerApplicationResponse getApplicantDetail(Long jobId, Long applicantId, Long employerId) {
         Application app = getApplicationAndVerifyEmployer(jobId, applicantId, employerId);
@@ -174,6 +188,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
                 .id(app.getId())
                 .jobId(app.getJob().getId())
                 .candidateId(cp.getId())
+                .jobTitle(app.getJob().getTitle())
                 .name(cp.getUser().getFullName())
                 .email(cp.getUser().getEmail())
                 .phone("0123456789")

@@ -70,6 +70,9 @@ public class HrDashboardServiceImpl implements HrDashboardService {
         List<TopJobItem> topJobs = buildTopJobs(allApps, jobs);
         List<RecentActivityItem> recentActivities = buildRecentActivities(jobIds);
 
+        List<PassRateRow> passRates = buildPassRates(allApps, jobs);
+        List<MissingSkill> missingSkills = buildMissingSkills(allApps);
+
         return HrDashboardResponse.builder()
                 .totalJobs(totalJobs)
                 .openJobs(openJobs)
@@ -82,6 +85,8 @@ public class HrDashboardServiceImpl implements HrDashboardService {
                 .weeklyTrend(weeklyTrend)
                 .topJobs(topJobs)
                 .recentActivities(recentActivities)
+                .passRates(passRates)
+                .missingSkills(missingSkills)
                 .build();
     }
 
@@ -256,11 +261,109 @@ public class HrDashboardServiceImpl implements HrDashboardService {
         if (stage == null) return "Unknown";
         return switch (stage) {
             case APPLIED -> "Applied";
-            case SCREENING -> "Screening";
             case INTERVIEW -> "Interview";
-            case OFFER -> "Offer";
             case HIRED -> "Hired";
             case REJECTED -> "Rejected";
         };
+    }
+
+    private List<PassRateRow> buildPassRates(List<Application> apps, List<Job> jobs) {
+        Map<Long, Job> jobMap = jobs.stream()
+                .collect(Collectors.toMap(Job::getId, j -> j));
+
+        Map<Long, List<Application>> appsByJob = apps.stream()
+                .collect(Collectors.groupingBy(a -> a.getJob().getId()));
+
+        return appsByJob.entrySet().stream()
+                .map(entry -> {
+                    Long jobId = entry.getKey();
+                    List<Application> jobApps = entry.getValue();
+                    Job job = jobMap.get(jobId);
+
+                    long totalApplicants = jobApps.size();
+                    long passed = jobApps.stream()
+                            .filter(a -> a.getStage() == ApplicationStage.HIRED)
+                            .count();
+                    
+                    double passRate = totalApplicants > 0 
+                            ? Math.round(passed * 1000.0 / totalApplicants) / 10.0 : 0.0;
+                            
+                    return PassRateRow.builder()
+                            .position(job != null ? job.getTitle() : "Vị trí không xác định")
+                            .department(job != null && job.getCompany() != null ? job.getCompany().getName() : "Công ty không xác định")
+                            .totalApplicants(totalApplicants)
+                            .passed(passed)
+                            .passRate(passRate)
+                            .prevRate(0.0)
+                            .avgTimeToHire(14L) // Mặc định thời gian tuyển (có thể thay bằng logic thật sau này)
+                            .build();
+                })
+                .sorted((a, b) -> Double.compare(b.getPassRate(), a.getPassRate()))
+                .limit(8)
+                .toList();
+    }
+
+    private List<MissingSkill> buildMissingSkills(List<Application> apps) {
+        Map<String, Long> gapCounts = new HashMap<>();
+        long totalAnalysedApps = 0;
+        
+        for (Application app : apps) {
+            if (app.getAiResult() != null && app.getAiResult().getGaps() != null) {
+                totalAnalysedApps++;
+                for (String gap : app.getAiResult().getGaps()) {
+                    String cleanGap = parseSkillName(gap);
+                    if (cleanGap != null && !cleanGap.isBlank()) {
+                        gapCounts.put(cleanGap, gapCounts.getOrDefault(cleanGap, 0L) + 1);
+                    }
+                }
+            }
+        }
+        
+        final long finalTotal = totalAnalysedApps;
+        return gapCounts.entrySet().stream()
+                .map(entry -> {
+                    String skill = entry.getKey();
+                    long count = entry.getValue();
+                    double candidateGap = finalTotal > 0 
+                            ? Math.round(count * 1000.0 / finalTotal) / 10.0 : 0.0;
+                    
+                    return MissingSkill.builder()
+                            .skill(skill)
+                            .category(determineCategory(skill))
+                            .demandCount(count) 
+                            .candidateGap(candidateGap)
+                            .trend("stable")
+                            .suggestedAction("Đào tạo bổ sung")
+                            .build();
+                })
+                .sorted((a, b) -> Double.compare(b.getCandidateGap(), a.getCandidateGap()))
+                .limit(10)
+                .toList();
+    }
+
+    private String parseSkillName(String gap) {
+        if (gap == null || gap.isBlank()) return null;
+        String lower = gap.toLowerCase();
+        String[] keywords = { "React", "TypeScript", "Node.js", "Docker", "AWS", "Java", "Spring Boot", "System Design", "CI/CD", "GraphQL", "Agile", "Scrum", "Giao tiếp", "Tiếng Anh" };
+        for (String kw : keywords) {
+            if (lower.contains(kw.toLowerCase())) {
+                return kw;
+            }
+        }
+        return gap.length() > 25 ? gap.substring(0, 25) + "..." : gap;
+    }
+
+    private String determineCategory(String skill) {
+        String s = skill.toLowerCase();
+        if (s.contains("aws") || s.contains("docker") || s.contains("tool") || s.contains("ci/cd") || s.contains("git")) {
+            return "tool";
+        }
+        if (s.contains("giao tiếp") || s.contains("quản lý") || s.contains("agile") || s.contains("scrum") || s.contains("tiếng anh")) {
+            return "soft";
+        }
+        if (s.contains("chứng chỉ") || s.contains("pmp") || s.contains("azure") || s.contains("certificate")) {
+            return "certification";
+        }
+        return "technical";
     }
 }

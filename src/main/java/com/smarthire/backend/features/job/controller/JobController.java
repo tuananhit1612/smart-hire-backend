@@ -30,7 +30,7 @@ public class JobController {
                 .body(ApiResponse.success("Job created successfully", response));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<ApiResponse<JobResponse>> getJobById(@PathVariable Long id) {
         JobResponse response = jobService.getJobById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -42,13 +42,13 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success(jobs));
     }
 
-    @GetMapping("/company/{companyId}")
+    @GetMapping("/company/{companyId:\\d+}")
     public ResponseEntity<ApiResponse<List<JobResponse>>> getJobsByCompany(@PathVariable Long companyId) {
         List<JobResponse> jobs = jobService.getJobsByCompany(companyId);
         return ResponseEntity.ok(ApiResponse.success(jobs));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     public ResponseEntity<ApiResponse<JobResponse>> updateJob(
             @PathVariable Long id,
             @Valid @RequestBody UpdateJobRequest request) {
@@ -56,7 +56,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Job updated successfully", response));
     }
 
-    @PatchMapping("/{id}/status")
+    @PatchMapping("/{id:\\d+}/status")
     public ResponseEntity<ApiResponse<JobResponse>> changeStatus(
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
@@ -64,7 +64,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success("Job status updated", response));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     public ResponseEntity<ApiResponse<Void>> deleteJob(@PathVariable Long id) {
         jobService.deleteJob(id);
         return ResponseEntity.ok(ApiResponse.success("Job deleted successfully", null));

@@ -9,7 +9,10 @@ import com.smarthire.backend.features.auth.entity.User;
 import com.smarthire.backend.features.company.dto.CompanyResponse;
 import com.smarthire.backend.features.company.dto.CreateCompanyRequest;
 import com.smarthire.backend.features.company.dto.UpdateCompanyRequest;
+import com.smarthire.backend.features.company.dto.*;
 import com.smarthire.backend.features.company.entity.Company;
+import com.smarthire.backend.features.company.entity.embeddable.CompanyBenefit;
+import com.smarthire.backend.features.company.entity.embeddable.CompanySocialLink;
 import com.smarthire.backend.features.company.repository.CompanyRepository;
 import com.smarthire.backend.infrastructure.storage.FileStorageService;
 import com.smarthire.backend.shared.enums.CompanySize;
@@ -46,6 +49,14 @@ public class CompanyServiceImpl implements CompanyService {
                 .description(request.getDescription())
                 .address(request.getAddress())
                 .city(request.getCity())
+                .coverUrl(request.getCoverUrl())
+                .tagline(request.getTagline())
+                .email(request.getEmail())
+                .phone(request.getPhone())
+                .founded(request.getFounded())
+                .techStack(request.getTechStack() != null ? request.getTechStack() : List.of())
+                .benefits(parseBenefits(request.getBenefits()))
+                .socialLinks(parseSocialLinks(request.getSocialLinks()))
                 .createdBy(currentUser)
                 .isVerified(false)
                 .build();
@@ -98,6 +109,24 @@ public class CompanyServiceImpl implements CompanyService {
         if (request.getDescription() != null) company.setDescription(request.getDescription());
         if (request.getAddress() != null) company.setAddress(request.getAddress());
         if (request.getCity() != null) company.setCity(request.getCity());
+        if (request.getCoverUrl() != null) company.setCoverUrl(request.getCoverUrl());
+        
+        if (request.getTagline() != null) company.setTagline(request.getTagline());
+        if (request.getEmail() != null) company.setEmail(request.getEmail());
+        if (request.getPhone() != null) company.setPhone(request.getPhone());
+        if (request.getFounded() != null) company.setFounded(request.getFounded());
+        if (request.getTechStack() != null) {
+            company.getTechStack().clear();
+            company.getTechStack().addAll(request.getTechStack());
+        }
+        if (request.getBenefits() != null) {
+            company.getBenefits().clear();
+            company.getBenefits().addAll(parseBenefits(request.getBenefits()));
+        }
+        if (request.getSocialLinks() != null) {
+            company.getSocialLinks().clear();
+            company.getSocialLinks().addAll(parseSocialLinks(request.getSocialLinks()));
+        }
 
         company = companyRepository.save(company);
         log.info("Company updated: {}", company.getName());
@@ -125,13 +154,37 @@ public class CompanyServiceImpl implements CompanyService {
 
     @Override
     @Transactional
+    public CompanyResponse uploadCover(Long id, MultipartFile file) {
+        Company company = findCompanyOrThrow(id);
+        checkOwnership(company);
+
+        // Xóa cover cũ nếu có
+        if (company.getCoverUrl() != null && !company.getCoverUrl().isBlank() && !company.getCoverUrl().startsWith("http")) {
+            fileStorageService.deleteFile(company.getCoverUrl());
+        }
+
+        String coverPath = fileStorageService.storeImage(file, "covers");
+        company.setCoverUrl(coverPath);
+        company = companyRepository.save(company);
+
+        log.info("Cover uploaded for company: {}", company.getName());
+        return toResponse(company);
+    }
+
+    @Override
+    @Transactional
     public void deleteCompany(Long id) {
         Company company = findCompanyOrThrow(id);
         checkOwnership(company);
 
         // Xóa logo nếu có
-        if (company.getLogoUrl() != null && !company.getLogoUrl().isBlank()) {
+        if (company.getLogoUrl() != null && !company.getLogoUrl().isBlank() && !company.getLogoUrl().startsWith("http")) {
             fileStorageService.deleteFile(company.getLogoUrl());
+        }
+        
+        // Xóa cover nếu có
+        if (company.getCoverUrl() != null && !company.getCoverUrl().isBlank() && !company.getCoverUrl().startsWith("http")) {
+            fileStorageService.deleteFile(company.getCoverUrl());
         }
 
         companyRepository.delete(company);
@@ -161,17 +214,45 @@ public class CompanyServiceImpl implements CompanyService {
         }
     }
 
+    private List<CompanyBenefit> parseBenefits(List<CompanyBenefitDto> dtos) {
+        if (dtos == null) return List.of();
+        return dtos.stream().map(dto -> CompanyBenefit.builder()
+                .id(dto.getId())
+                .icon(dto.getIcon())
+                .title(dto.getTitle())
+                .description(dto.getDescription())
+                .build()).toList();
+    }
+
+    private List<CompanySocialLink> parseSocialLinks(List<CompanySocialLinkDto> dtos) {
+        if (dtos == null) return List.of();
+        return dtos.stream().map(dto -> CompanySocialLink.builder()
+                .platform(dto.getPlatform())
+                .url(dto.getUrl())
+                .build()).toList();
+    }
+
     private CompanyResponse toResponse(Company company) {
         return CompanyResponse.builder()
                 .id(company.getId())
                 .name(company.getName())
                 .logoUrl(company.getLogoUrl())
+                .coverUrl(company.getCoverUrl())
                 .website(company.getWebsite())
                 .industry(company.getIndustry())
                 .companySize(company.getCompanySize())
                 .description(company.getDescription())
                 .address(company.getAddress())
                 .city(company.getCity())
+                .tagline(company.getTagline())
+                .email(company.getEmail())
+                .phone(company.getPhone())
+                .founded(company.getFounded())
+                .techStack(company.getTechStack())
+                .benefits(company.getBenefits() != null ? company.getBenefits().stream().map(b -> CompanyBenefitDto.builder()
+                        .id(b.getId()).icon(b.getIcon()).title(b.getTitle()).description(b.getDescription()).build()).toList() : List.of())
+                .socialLinks(company.getSocialLinks() != null ? company.getSocialLinks().stream().map(s -> CompanySocialLinkDto.builder()
+                        .platform(s.getPlatform()).url(s.getUrl()).build()).toList() : List.of())
                 .createdBy(company.getCreatedBy().getId())
                 .isVerified(company.getIsVerified())
                 .createdAt(company.getCreatedAt())

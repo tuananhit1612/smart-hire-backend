@@ -17,6 +17,7 @@ public class EmployerApplicationResponse {
     private Long id;
     private Long jobId;
     private Long candidateId;
+    private String jobTitle;
     private String name;
     private String email;
     private String phone;

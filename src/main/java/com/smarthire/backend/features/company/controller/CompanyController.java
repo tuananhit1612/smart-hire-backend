@@ -31,7 +31,7 @@ public class CompanyController {
                 .body(ApiResponse.success("Company created successfully", response));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<ApiResponse<CompanyResponse>> getCompanyById(@PathVariable Long id) {
         CompanyResponse response = companyService.getCompanyById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -49,7 +49,7 @@ public class CompanyController {
         return ResponseEntity.ok(ApiResponse.success(companies));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:\\d+}")
     public ResponseEntity<ApiResponse<CompanyResponse>> updateCompany(
             @PathVariable Long id,
             @Valid @RequestBody UpdateCompanyRequest request) {
@@ -57,7 +57,7 @@ public class CompanyController {
         return ResponseEntity.ok(ApiResponse.success("Company updated successfully", response));
     }
 
-    @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/{id:\\d+}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<CompanyResponse>> uploadLogo(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file) {
@@ -65,7 +65,15 @@ public class CompanyController {
         return ResponseEntity.ok(ApiResponse.success("Logo uploaded successfully", response));
     }
 
-    @DeleteMapping("/{id}")
+    @PostMapping(value = "/{id:\\d+}/cover", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<CompanyResponse>> uploadCover(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        CompanyResponse response = companyService.uploadCover(id, file);
+        return ResponseEntity.ok(ApiResponse.success("Cover uploaded successfully", response));
+    }
+
+    @DeleteMapping("/{id:\\d+}")
     public ResponseEntity<ApiResponse<Void>> deleteCompany(@PathVariable Long id) {
         companyService.deleteCompany(id);
         return ResponseEntity.ok(ApiResponse.success("Company deleted successfully", null));

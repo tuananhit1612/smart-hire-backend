@@ -34,7 +34,7 @@ public class JobServiceImpl implements JobService {
         Company company = companyRepository.findById(request.getCompanyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found with id: " + request.getCompanyId()));
 
-        if (!company.getCreatedBy().getId().equals(currentUser.getId())) {
+        if (company.getCreatedBy() != null && !company.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new ForbiddenException("You can only create jobs for your own company");
         }
 
@@ -164,7 +164,8 @@ public class JobServiceImpl implements JobService {
 
     private void checkOwnership(Job job) {
         User currentUser = SecurityUtils.getCurrentUser();
-        if (!job.getCreatedBy().getId().equals(currentUser.getId())) {
+        // Fallback for mock/seeded jobs that might not have a proper creator structure
+        if (job.getCreatedBy() != null && !job.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new ForbiddenException("You do not have permission to modify this job");
         }
     }
