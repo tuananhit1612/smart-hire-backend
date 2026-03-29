@@ -1,0 +1,34 @@
+[
+  {
+    "category": "IMPACT_AND_METRICS",
+    "description": "Kinh nghiệm làm việc phải gắn liền với kết quả định lượng. Sử dụng số liệu, phần trăm, hoặc thời gian cụ thể để chứng minh hiệu quả công việc.",
+    "severity": "HIGH",
+    "example": "Tăng doanh số 20% trong 6 tháng thay vì chỉ viết 'Tăng doanh số'."
+  },
+  {
+    "category": "ACTION_VERBS",
+    "description": "Các mô tả công việc (bullet points) cần bắt đầu bằng động từ mạnh (Action Verbs) thể hiện tính chủ động.",
+    "severity": "MEDIUM",
+    "example": "Sử dụng 'Lãnh đạo', 'Phát triển', 'Tối ưu hóa' thay vì 'Chịu trách nhiệm cho', 'Tham gia vào'."
+  },
+  {
+    "category": "CLARITY_AND_CONCISENESS",
+    "description": "Ngôn từ rõ ràng, ngắn gọn. Tránh lặp lại quá mức các từ sáo rỗng (buzzwords) hoặc viết các đoạn văn quá dài dòng.",
+    "severity": "MEDIUM"
+  },
+  {
+    "category": "CONTACT_INFORMATION",
+    "description": "Phải có đầy đủ thông tin liên lạc rõ ràng: Email chuyên nghiệp, số điện thoại, và đường dẫn tới LinkedIn hoặc Portfolio.",
+    "severity": "HIGH"
+  },
+  {
+    "category": "SKILL_RELEVANCE",
+    "description": "Kỹ năng liệt kê phải liên quan trực tiếp đến định hướng nghề nghiệp. Phân nhóm kỹ năng cứng (công cụ, ngôn ngữ lập trình) và kỹ năng mềm.",
+    "severity": "MEDIUM"
+  },
+  {
+    "category": "FORMAT_AND_STRUCTURE",
+    "description": "Cấu trúc dễ nhìn, sử dụng bullet points để liệt kê. Font chữ đồng nhất, không sai lỗi chính tả hay ngữ pháp.",
+    "severity": "HIGH"
+  }
+]

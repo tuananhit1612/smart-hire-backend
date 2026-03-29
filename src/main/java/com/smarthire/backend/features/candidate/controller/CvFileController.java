@@ -61,12 +61,23 @@ public class CvFileController {
     }
 
     @GetMapping("/{id}/download")
-    @Operation(summary = "Download CV", description = "Downloads the CV file")
+    @Operation(summary = "Download CV", description = "Downloads the CV file (Inline for PDFs)")
     public ResponseEntity<Resource> downloadCvFile(@PathVariable Long id) {
         Resource resource = cvFileService.downloadCvFile(id);
+        String filename = resource.getFilename();
+        
+        // Use inline for PDFs so browsers/iframes can preview them directly
+        String disposition = (filename != null && filename.toLowerCase().endsWith(".pdf")) 
+                ? "inline" 
+                : "attachment";
+                
+        MediaType mediaType = (filename != null && filename.toLowerCase().endsWith(".pdf"))
+                ? MediaType.APPLICATION_PDF
+                : MediaType.APPLICATION_OCTET_STREAM;
+
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, disposition + "; filename=\"" + filename + "\"")
                 .body(resource);
     }
 }

@@ -13,6 +13,7 @@ import com.smarthire.backend.features.application.repository.ApplicationReposito
 import com.smarthire.backend.features.auth.entity.User;
 import com.smarthire.backend.features.auth.repository.UserRepository;
 import com.smarthire.backend.features.candidate.entity.CandidateProfile;
+import com.smarthire.backend.infrastructure.ai.service.AiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -20,9 +21,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +33,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     private final ApplicationNoteRepository noteRepository;
     private final UserRepository userRepository;
     private final ApplicationService coreApplicationService;
+    private final AiService aiService;
 
     @Override
     @Transactional(readOnly = true)
@@ -57,10 +57,27 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     public EmployerApplicationResponse getApplicantDetail(Long jobId, Long applicantId, Long employerId) {
         Application app = getApplicationAndVerifyEmployer(jobId, applicantId, employerId);
         
-        // Auto-generate AI Result if missing for demo purposes
+        // Auto-generate AI Result if missing
         if (app.getAiResult() == null) {
-            app.setAiResult(generateMockAiResult(app));
-            applicationRepository.save(app);
+            try {
+                ApplicationAiResult aiResult = aiService.matchCvWithJob(app);
+                aiResult = aiResultRepository.save(aiResult);
+                app.setAiResult(aiResult);
+                log.info("✅ AI match generated for application {}", app.getId());
+            } catch (Exception e) {
+                log.error("❌ AI match failed for application {}: {}", app.getId(), e.getMessage());
+                // Fallback: create basic result
+                ApplicationAiResult fallback = ApplicationAiResult.builder()
+                        .application(app)
+                        .matchScore(0)
+                        .skillMatch(0)
+                        .experienceMatch(0)
+                        .summary("AI analysis is currently unavailable. Please try re-analyzing.")
+                        .strengths(List.of())
+                        .gaps(List.of())
+                        .build();
+                app.setAiResult(aiResultRepository.save(fallback));
+            }
         }
         
         return toEmployerResponse(app);
@@ -105,13 +122,31 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
         ApplicationAiResult result = app.getAiResult();
         if (result != null) {
             aiResultRepository.delete(result);
+            aiResultRepository.flush();
+            app.setAiResult(null);
         }
         
-        ApplicationAiResult newResult = generateMockAiResult(app);
-        newResult = aiResultRepository.save(newResult);
-        app.setAiResult(newResult);
-        
-        return toAiAnalysisResponse(newResult);
+        try {
+            ApplicationAiResult newResult = aiService.matchCvWithJob(app);
+            newResult = aiResultRepository.save(newResult);
+            app.setAiResult(newResult);
+            log.info("✅ AI re-analysis completed for application {}", app.getId());
+            return toAiAnalysisResponse(newResult);
+        } catch (Exception e) {
+            log.error("❌ AI re-analysis failed: {}", e.getMessage());
+            ApplicationAiResult fallback = ApplicationAiResult.builder()
+                    .application(app)
+                    .matchScore(0)
+                    .skillMatch(0)
+                    .experienceMatch(0)
+                    .summary("AI re-analysis failed: " + e.getMessage())
+                    .strengths(List.of())
+                    .gaps(List.of("AI service error"))
+                    .build();
+            fallback = aiResultRepository.save(fallback);
+            app.setAiResult(fallback);
+            return toAiAnalysisResponse(fallback);
+        }
     }
 
     private Application getApplicationAndVerifyEmployer(Long jobId, Long applicantId, Long employerId) {
@@ -126,26 +161,15 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
         return app;
     }
 
-    private ApplicationAiResult generateMockAiResult(Application app) {
-        Random rnd = new Random();
-        int score = 60 + rnd.nextInt(35); // 60-95
-        return ApplicationAiResult.builder()
-                .application(app)
-                .matchScore(score)
-                .skillMatch(score - 5)
-                .experienceMatch(score + 2)
-                .summary("Ứng viên có kỹ năng phù hợp nhưng thiếu một số kinh nghiệm thực tế trong các dự án quy mô lớn.")
-                .strengths(Arrays.asList("Kỹ năng lập trình tốt", "Thái độ học hỏi", "Project cá nhân đa dạng"))
-                .gaps(Arrays.asList("Kinh nghiệm thực tế chưa nhiều", "Chưa làm việc với microservices"))
-                .build();
-    }
-
     private EmployerApplicationResponse toEmployerResponse(Application app) {
         CandidateProfile cp = app.getCandidateProfile();
         
-        List<String> skills = Arrays.asList("Java", "Spring Boot", "React", "TypeScript");
-        if (app.getCvFile() != null) {
-            skills = Arrays.asList("Spring Boot", "AWS", "SQL", "Docker");
+        // Lấy skills từ Job requirements thay vì hardcode
+        List<String> skills = List.of();
+        if (app.getJob().getSkills() != null) {
+            skills = app.getJob().getSkills().stream()
+                    .map(s -> s.getSkillName())
+                    .toList();
         }
 
         AiAnalysisResponse ai = null;

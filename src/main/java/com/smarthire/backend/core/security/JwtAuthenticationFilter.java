@@ -44,10 +44,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private String extractToken(HttpServletRequest request) {
+        // Try Authorization header first
         String header = request.getHeader("Authorization");
         if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
             return header.substring(7);
         }
+        
+        // Try access_token parameter for iframe/download links
+        String param = request.getParameter("access_token");
+        if (StringUtils.hasText(param)) {
+            return param;
+        }
+        
         return null;
     }
 }
