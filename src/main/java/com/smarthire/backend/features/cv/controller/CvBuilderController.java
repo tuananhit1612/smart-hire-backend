@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/cv-builder")
 @RequiredArgsConstructor
@@ -20,16 +22,30 @@ public class CvBuilderController {
     private final CvBuilderService cvBuilderService;
 
     @GetMapping
-    @Operation(summary = "Get CV Builder Data", description = "Retrieve existing CV Builder data for the authenticated candidate")
-    public ResponseEntity<CvBuilderResponse> getCvBuilderData() {
+    @Operation(summary = "Get All CVs", description = "Retrieve all CV Builder data entries for the authenticated candidate")
+    public ResponseEntity<List<CvBuilderResponse>> getAllCvBuilderData() {
         Long userId = SecurityUtils.getCurrentUserId();
-        return ResponseEntity.ok(cvBuilderService.getCvBuilderData(userId));
+        return ResponseEntity.ok(cvBuilderService.getAllCvBuilderData(userId));
     }
 
-    @PutMapping
-    @Operation(summary = "Save or Update CV Builder Data", description = "Create or update CV builder json sections for the authenticated candidate")
-    public ResponseEntity<CvBuilderResponse> saveCvBuilderData(@Valid @RequestBody CvBuilderRequest request) {
+    @PostMapping
+    @Operation(summary = "Create New CV", description = "Create a new CV builder entry (never overwrites existing CVs)")
+    public ResponseEntity<CvBuilderResponse> createCvBuilderData(@Valid @RequestBody CvBuilderRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
-        return ResponseEntity.ok(cvBuilderService.saveCvBuilderData(userId, request));
+        return ResponseEntity.ok(cvBuilderService.createCvBuilderData(userId, request));
+    }
+
+    @PutMapping("/{cvFileId}")
+    @Operation(summary = "Update CV by CvFile ID", description = "Update an existing CV builder data for a specific CV file")
+    public ResponseEntity<CvBuilderResponse> updateCvBuilderData(
+            @PathVariable Long cvFileId,
+            @Valid @RequestBody CvBuilderRequest request) {
+        return ResponseEntity.ok(cvBuilderService.updateCvBuilderDataByCvFileId(cvFileId, request));
+    }
+
+    @GetMapping("/{cvFileId}")
+    @Operation(summary = "Get CV Builder Data by CvFile ID", description = "Retrieve CV Builder data for a specific CV file")
+    public ResponseEntity<CvBuilderResponse> getCvBuilderDataByCvFileId(@PathVariable Long cvFileId) {
+        return ResponseEntity.ok(cvBuilderService.getCvBuilderDataByCvFileId(cvFileId));
     }
 }

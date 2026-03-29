@@ -89,7 +89,7 @@ public class CvFileServiceImpl implements CvFileService {
 
     @Override
     @Transactional
-    public CvFileResponse uploadCv(MultipartFile file) {
+    public CvFileResponse uploadCv(MultipartFile file, CvSource source) {
         CandidateProfile profile = getMyProfile();
 
         // Resolve file type from content type
@@ -102,6 +102,29 @@ public class CvFileServiceImpl implements CvFileService {
         String originalFilename = StringUtils.cleanPath(
                 file.getOriginalFilename() != null ? file.getOriginalFilename() : "cv." + fileType.name().toLowerCase());
 
+        // If source is BUILDER, try to update the existing builder CvFile
+        if (source == CvSource.BUILDER) {
+            var existingBuilderCv = cvFileRepository
+                    .findByCandidateProfileIdOrderByCreatedAtDesc(profile.getId())
+                    .stream()
+                    .filter(cv -> cv.getSource() == CvSource.BUILDER)
+                    .findFirst();
+
+            if (existingBuilderCv.isPresent()) {
+                CvFile builderCv = existingBuilderCv.get();
+                // Delete old file from disk
+                try { fileStorageService.deleteFile(builderCv.getFilePath()); } catch (Exception ignored) {}
+                // Update existing record
+                builderCv.setFileName(originalFilename);
+                builderCv.setFilePath(relativePath);
+                builderCv.setFileType(fileType);
+                builderCv.setFileSize((int) file.getSize());
+                builderCv = cvFileRepository.save(builderCv);
+                log.info("Updated Builder CV {} for user {}", builderCv.getId(), getCurrentUser().getEmail());
+                return mapToResponse(builderCv);
+            }
+        }
+
         // If first CV → auto primary
         boolean isFirst = cvFileRepository.countByCandidateProfileId(profile.getId()) == 0;
 
@@ -111,12 +134,12 @@ public class CvFileServiceImpl implements CvFileService {
                 .filePath(relativePath)
                 .fileType(fileType)
                 .fileSize((int) file.getSize())
-                .source(CvSource.UPLOAD)
+                .source(source)
                 .isPrimary(isFirst)
                 .build();
 
         cvFile = cvFileRepository.save(cvFile);
-        log.info("Uploaded CV {} for user {} (primary={})", cvFile.getId(), getCurrentUser().getEmail(), isFirst);
+        log.info("Uploaded CV {} for user {} (source={}, primary={})", cvFile.getId(), getCurrentUser().getEmail(), source, isFirst);
         return mapToResponse(cvFile);
     }
 

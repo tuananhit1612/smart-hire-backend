@@ -36,4 +36,23 @@ public class CvReviewServiceImpl implements CvReviewService {
         return cvReviewRepository.findTopByCvFileIdOrderByCreatedAtDesc(cvFileId)
                 .orElseThrow(() -> new ResourceNotFoundException("CV Review not found for cvFileId: " + cvFileId));
     }
+
+    @Override
+    public String optimizeCv(Long cvFileId) {
+        log.info("🔧 Triggering AI CV optimization for cvFileId={}", cvFileId);
+
+        // Guard: Check if CV has sufficient data for optimization
+        var latestReview = cvReviewRepository.findTopByCvFileIdOrderByCreatedAtDesc(cvFileId);
+        if (latestReview.isPresent()) {
+            String completenessJson = latestReview.get().getDataCompleteness();
+            if (completenessJson != null && completenessJson.contains("\"canOptimize\":false")) {
+                log.warn("⛔ CV optimization blocked — CV has insufficient data (cvFileId={})", cvFileId);
+                throw new com.smarthire.backend.core.exception.BadRequestException(
+                    "CV thiếu thông tin nghiêm trọng. Vui lòng bổ sung thông tin đầy đủ trong CV Builder trước khi tối ưu."
+                );
+            }
+        }
+
+        return aiService.optimizeCv(cvFileId);
+    }
 }

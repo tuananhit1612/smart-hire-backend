@@ -4,6 +4,7 @@ import com.smarthire.backend.features.candidate.dto.CvFileResponse;
 import com.smarthire.backend.features.candidate.service.CvFileService;
 import com.smarthire.backend.shared.constants.ApiPaths;
 import com.smarthire.backend.shared.dto.ApiResponse;
+import com.smarthire.backend.shared.enums.CvSource;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +31,10 @@ public class CvFileController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload CV", description = "Upload a PDF or DOCX CV file. First CV is automatically set as primary.")
     public ResponseEntity<ApiResponse<CvFileResponse>> uploadCv(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "source", defaultValue = "UPLOAD") CvSource source) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("CV uploaded successfully", cvFileService.uploadCv(file)));
+                .body(ApiResponse.success("CV uploaded successfully", cvFileService.uploadCv(file, source)));
     }
 
     @GetMapping

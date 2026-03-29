@@ -23,6 +23,7 @@ import com.smarthire.backend.features.onboarding.dto.UploadCvResponse;
 import com.smarthire.backend.features.onboarding.dto.VerifiedCvData;
 import com.smarthire.backend.infrastructure.ai.service.AiService;
 import com.smarthire.backend.shared.enums.JobLevel;
+import com.smarthire.backend.shared.enums.CvSource;
 import com.smarthire.backend.shared.enums.ParseStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +62,7 @@ public class OnboardingServiceImpl implements OnboardingService {
         }
 
         // Delegate to existing CvFileService to store the file
-        CvFileResponse cvFileResponse = cvFileService.uploadCv(file);
+        CvFileResponse cvFileResponse = cvFileService.uploadCv(file, CvSource.UPLOAD);
 
         CvFile cvFile = cvFileRepository.findById(cvFileResponse.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("CvFile", cvFileResponse.getId()));

@@ -14,4 +14,10 @@ public interface CvReviewService {
      * Lấy review gần nhất cho CV file.
      */
     AiCvReview getLatestReview(Long cvFileId);
+
+    /**
+     * Tối ưu CV bằng AI — rewrite items cần cải thiện.
+     * @return JSON string chứa optimized sections.
+     */
+    String optimizeCv(Long cvFileId);
 }

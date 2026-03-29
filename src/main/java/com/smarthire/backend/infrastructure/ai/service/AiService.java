@@ -26,4 +26,11 @@ public interface AiService {
      * Review CV quality → issues, suggestions, rating.
      */
     AiCvReview reviewCvFile(Long cvFileId);
+
+    /**
+     * Optimize toàn bộ CV — rewrite all improvable items.
+     * Input: CV file content.
+     * Output: JSON string of optimized sections.
+     */
+    String optimizeCv(Long cvFileId);
 }

@@ -38,10 +38,29 @@ public class CvReviewController {
         return ResponseEntity.ok(ApiResponse.success(toResponseMap(review)));
     }
 
+    /**
+     * POST /api/ai/cv-review/{cvFileId}/optimize
+     * Tối ưu CV bằng AI — rewrite all improvable items.
+     */
+    @PostMapping("/{cvFileId}/optimize")
+    public ResponseEntity<ApiResponse<String>> optimizeCv(@PathVariable Long cvFileId) {
+        String optimizedJson = cvReviewService.optimizeCv(cvFileId);
+        return ResponseEntity.ok(ApiResponse.success("CV optimized successfully", optimizedJson));
+    }
+
     private Map<String, Object> toResponseMap(AiCvReview review) {
         Map<String, Object> map = new HashMap<>();
         map.put("id", review.getId());
         map.put("cvFileId", review.getCvFile().getId());
+
+        // New structured fields
+        map.put("overallScore", review.getOverallScore());
+        map.put("atsScore", review.getAtsScore());
+        map.put("sectionScores", review.getSectionScores());
+        map.put("topIssues", review.getTopIssues());
+        map.put("dataCompleteness", review.getDataCompleteness());
+
+        // Legacy fields
         map.put("summary", review.getSummary());
         map.put("issues", review.getIssues());
         map.put("suggestions", review.getSuggestions());

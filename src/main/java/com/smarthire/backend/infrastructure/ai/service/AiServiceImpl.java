@@ -34,6 +34,7 @@ public class AiServiceImpl implements AiService {
     private final GeminiClient geminiClient;
     private final CvFileRepository cvFileRepository;
     private final FileStorageService fileStorageService;
+    private final com.smarthire.backend.features.candidate.repository.AiCvReviewRepository aiCvReviewRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -115,6 +116,34 @@ public class AiServiceImpl implements AiService {
 
         // Parse JSON → AiCvReview entity
         return parseReviewResponse(aiResponse, cvFile);
+    }
+
+    @Override
+    public String optimizeCv(Long cvFileId) {
+        log.info("🤖 AI Optimize CV — cvFileId={}", cvFileId);
+
+        CvFile cvFile = cvFileRepository.findById(cvFileId)
+                .orElseThrow(() -> new ResourceNotFoundException("CvFile", cvFileId));
+
+        Path filePath = fileStorageService.getFilePath(cvFile.getFilePath());
+        String mimeType = getMimeType(cvFile.getFileName());
+
+        // Get latest review to include in optimize prompt
+        String reviewJson = "[]";
+        try {
+            var reviewOpt = aiCvReviewRepository.findTopByCvFileIdOrderByCreatedAtDesc(cvFileId);
+            if (reviewOpt.isPresent()) {
+                AiCvReview latestReview = reviewOpt.get();
+                reviewJson = latestReview.getSectionScores() != null ? latestReview.getSectionScores() : "[]";
+            }
+        } catch (Exception e) {
+            log.warn("Could not load latest review for optimization: {}", e.getMessage());
+        }
+
+        String prompt = String.format(PromptTemplates.CV_OPTIMIZE_PROMPT, reviewJson);
+        String aiResponse = geminiClient.chatWithFile(filePath, mimeType, prompt);
+
+        return cleanJsonResponse(aiResponse);
     }
 
     // ━━━━━━━━━━━━━━━━━━━━ Private helpers ━━━━━━━━━━━━━━━━━━━━
@@ -249,28 +278,72 @@ public class AiServiceImpl implements AiService {
             String json = cleanJsonResponse(aiResponse);
             JsonNode node = objectMapper.readTree(json);
 
-            double rating = node.has("overallRating") ? node.get("overallRating").asDouble() : 5.0;
-            String summary = getTextOrEmpty(node, "summary");
+            // New structured fields
+            int overallScore = node.has("overallScore") ? node.get("overallScore").asInt() : 50;
+            int atsScore = node.has("atsScore") ? node.get("atsScore").asInt() : 50;
+            String sectionScores = node.has("sections") ? objectMapper.writeValueAsString(node.get("sections")) : "[]";
+            String topIssues = node.has("topIssues") ? objectMapper.writeValueAsString(node.get("topIssues")) : "[]";
+            String dataCompleteness = node.has("dataCompleteness") ? objectMapper.writeValueAsString(node.get("dataCompleteness")) : null;
 
-            // Store JSON objects/arrays as JSON strings for the database
-            String issues = node.has("issues") ? objectMapper.writeValueAsString(node.get("issues")) : "[]";
-            String suggestions = node.has("suggestions") ? objectMapper.writeValueAsString(node.get("suggestions")) : "[]";
+            // Legacy fields for backward compatibility
             String strengths = node.has("strengths") ? objectMapper.writeValueAsString(node.get("strengths")) : "[]";
             String weaknesses = node.has("weaknesses") ? objectMapper.writeValueAsString(node.get("weaknesses")) : "[]";
+            String summary = getTextOrEmpty(node, "summary");
+
+            // Convert overallScore (0-100) to overallRating (0-10) for legacy field
+            double overallRating = overallScore / 10.0;
+
+            // Build legacy issues from topIssues for backward compatibility
+            String issues = topIssues;
+
+            // Build legacy suggestions from sections items where action != KEEP
+            String suggestions = "[]";
+            try {
+                List<java.util.Map<String, String>> suggestionList = new ArrayList<>();
+                if (node.has("sections") && node.get("sections").isArray()) {
+                    for (JsonNode section : node.get("sections")) {
+                        String sectionName = getTextOrEmpty(section, "name");
+                        if (section.has("items") && section.get("items").isArray()) {
+                            for (JsonNode item : section.get("items")) {
+                                String action = getTextOrEmpty(item, "action");
+                                if (!"KEEP".equals(action) && !action.isEmpty()) {
+                                    java.util.Map<String, String> sug = new java.util.HashMap<>();
+                                    sug.put("section", sectionName);
+                                    sug.put("suggestion", getTextOrEmpty(item, "reason"));
+                                    suggestionList.add(sug);
+                                }
+                            }
+                        }
+                    }
+                }
+                suggestions = objectMapper.writeValueAsString(suggestionList);
+            } catch (Exception e) {
+                log.warn("Could not build legacy suggestions: {}", e.getMessage());
+            }
 
             return AiCvReview.builder()
                     .cvFile(cvFile)
+                    .overallScore(overallScore)
+                    .atsScore(atsScore)
+                    .sectionScores(sectionScores)
+                    .topIssues(topIssues)
+                    .dataCompleteness(dataCompleteness)
                     .summary(summary)
                     .issues(issues)
                     .suggestions(suggestions)
                     .strengths(strengths)
                     .weaknesses(weaknesses)
-                    .overallRating(BigDecimal.valueOf(rating))
+                    .overallRating(BigDecimal.valueOf(overallRating))
                     .build();
         } catch (Exception e) {
             log.error("❌ Failed to parse Review AI response: {}", e.getMessage());
+            log.debug("Raw AI response: {}", aiResponse);
             return AiCvReview.builder()
                     .cvFile(cvFile)
+                    .overallScore(0)
+                    .atsScore(0)
+                    .sectionScores("[]")
+                    .topIssues("[]")
                     .summary("Failed to analyze CV.")
                     .issues("[]")
                     .suggestions("[]")

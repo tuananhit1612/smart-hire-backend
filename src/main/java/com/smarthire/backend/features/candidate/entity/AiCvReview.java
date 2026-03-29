@@ -23,6 +23,25 @@ public class AiCvReview {
     @JoinColumn(name = "cv_file_id", nullable = false)
     private CvFile cvFile;
 
+    // ── New structured fields (Phase 1) ──
+
+    @Column(name = "overall_score")
+    private Integer overallScore;
+
+    @Column(name = "ats_score")
+    private Integer atsScore;
+
+    @Column(name = "section_scores", columnDefinition = "JSON")
+    private String sectionScores;
+
+    @Column(name = "top_issues", columnDefinition = "JSON")
+    private String topIssues;
+
+    @Column(name = "data_completeness", columnDefinition = "JSON")
+    private String dataCompleteness;
+
+    // ── Legacy fields (kept for backward compatibility) ──
+
     @Column(columnDefinition = "JSON")
     private String issues;
 
@@ -34,7 +53,7 @@ public class AiCvReview {
 
     @Column(columnDefinition = "JSON")
     private String weaknesses;
-    
+
     @Column(columnDefinition = "TEXT")
     private String summary;
 

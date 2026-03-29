@@ -14,6 +14,9 @@ import java.util.Map;
 @AllArgsConstructor
 public class CvBuilderRequest {
 
+    /** Tên CV (tuỳ chọn) — dùng khi tạo mới hoặc đổi tên */
+    private String title;
+
     private String templateId;
 
     @NotNull(message = "Sections data cannot be null")
