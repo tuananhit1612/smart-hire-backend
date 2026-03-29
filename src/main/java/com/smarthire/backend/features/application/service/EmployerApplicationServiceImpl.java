@@ -102,7 +102,13 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     public EmployerApplicationResponse updateStage(Long jobId, Long applicantId, Long employerId, ChangeStageRequest request) {
         Application app = getApplicationAndVerifyEmployer(jobId, applicantId, employerId);
         coreApplicationService.changeStage(app.getId(), employerId, request);
-        return getApplicantDetail(jobId, applicantId, employerId);
+        try {
+            return getApplicantDetail(jobId, applicantId, employerId);
+        } catch (Exception e) {
+            log.warn("Could not fetch full detail after stage update (e.g. AI analysis failed): {}", e.getMessage());
+            // Return a minimal response so the client knows stage update succeeded
+            return toEmployerResponse(applicationRepository.findById(applicantId).orElse(app));
+        }
     }
 
     @Override

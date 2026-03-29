@@ -42,6 +42,16 @@ public class User {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    /** GitHub user ID — null for LOCAL accounts */
+    @Column(name = "github_id", unique = true)
+    private String githubId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 20,
+            columnDefinition = "varchar(20) DEFAULT 'LOCAL'")
+    @Builder.Default
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;

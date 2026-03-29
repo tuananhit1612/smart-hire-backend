@@ -19,5 +19,7 @@ public interface AuthService {
     void verifyResetToken(String token);
 
     void changePassword(ChangePasswordRequest request);
+
+    AuthResponse githubLogin(String code);
 }
 

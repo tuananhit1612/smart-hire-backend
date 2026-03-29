@@ -20,4 +20,6 @@ public class ApplicationTrackingResponse {
     private ApplicationStage currentStage;
     private LocalDateTime appliedAt;
     private LocalDateTime updatedAt;
+    private String cvFileName;
+    private String cvFileUrl;
 }

@@ -4,6 +4,7 @@ import com.smarthire.backend.core.exception.BadRequestException;
 import com.smarthire.backend.core.security.JwtUtil;
 import com.smarthire.backend.core.security.SecurityUtils;
 import com.smarthire.backend.features.auth.dto.*;
+import com.smarthire.backend.features.auth.entity.AuthProvider;
 import com.smarthire.backend.features.auth.entity.PasswordResetToken;
 import com.smarthire.backend.features.auth.entity.RefreshToken;
 import com.smarthire.backend.features.auth.entity.User;
@@ -22,8 +23,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -249,8 +253,146 @@ public class AuthServiceImpl implements AuthService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole().name())
-                .isOnboarded(user.getIsOnboarded())
+                .isOnboarded(user.getIsOnboarded() != null ? user.getIsOnboarded() : false)
                 .build();
+    }
+
+    // ── GitHub OAuth fields ───────────────────────────────────────────────────
+
+    @Value("${github.client-id}")
+    private String githubClientId;
+
+    @Value("${github.client-secret}")
+    private String githubClientSecret;
+
+    @Override
+    @Transactional
+    @SuppressWarnings("unchecked")
+    public AuthResponse githubLogin(String code) {
+        RestClient restClient = RestClient.create();
+
+        // ── Step 1: Exchange code → access_token ──────────────────────
+        Map<String, Object> tokenResponse = restClient.post()
+                .uri("https://github.com/login/oauth/access_token")
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .body(Map.of(
+                        "client_id", githubClientId,
+                        "client_secret", githubClientSecret,
+                        "code", code
+                ))
+                .retrieve()
+                .body(Map.class);
+
+        if (tokenResponse == null || !tokenResponse.containsKey("access_token")) {
+            throw new BadRequestException("Invalid GitHub OAuth code");
+        }
+        String githubAccessToken = (String) tokenResponse.get("access_token");
+
+        // ── Step 2: Fetch GitHub user profile ─────────────────────────
+        Map<String, Object> githubUser = restClient.get()
+                .uri("https://api.github.com/user")
+                .header("Authorization", "Bearer " + githubAccessToken)
+                .header("Accept", "application/vnd.github+json")
+                .retrieve()
+                .body(Map.class);
+
+        if (githubUser == null) {
+            throw new BadRequestException("Failed to fetch GitHub user info");
+        }
+
+        String githubId  = String.valueOf(githubUser.get("id"));
+        String login     = (String) githubUser.get("login");
+        String fullName  = githubUser.get("name") != null ? (String) githubUser.get("name") : login;
+        String avatarUrl = (String) githubUser.get("avatar_url");
+        String email     = (String) githubUser.get("email");
+
+        log.info("📋 GitHub profile: login={}, githubId={}, name={}, publicEmail={}",
+                login, githubId, fullName, email);
+
+        // ── Step 3: Fetch primary verified email if not public ─────────
+        if (email == null || email.isBlank()) {
+            List<Map<String, Object>> emails = restClient.get()
+                    .uri("https://api.github.com/user/emails")
+                    .header("Authorization", "Bearer " + githubAccessToken)
+                    .header("Accept", "application/vnd.github+json")
+                    .retrieve()
+                    .body(List.class);
+
+            if (emails != null) {
+                log.info("📧 GitHub emails: {}", emails);
+                email = emails.stream()
+                        .filter(e -> Boolean.TRUE.equals(e.get("primary")) && Boolean.TRUE.equals(e.get("verified")))
+                        .map(e -> (String) e.get("email"))
+                        .findFirst()
+                        .orElse(null);
+            }
+        }
+
+        if (email == null || email.isBlank()) {
+            throw new BadRequestException("Could not retrieve a verified email from GitHub.");
+        }
+
+        log.info("🔑 GitHub OAuth: resolved email={}, githubId={}, login={}", email, githubId, login);
+
+        // ── Step 4: Find or create user ───────────────────────────────
+        final String finalEmail = email;
+        User user = userRepository.findByGithubId(githubId)
+                .orElseGet(() -> userRepository.findByEmail(finalEmail).orElse(null));
+
+        if (user == null) {
+            // ── Case A: Brand new user — create CANDIDATE account ─────
+            user = User.builder()
+                    .email(finalEmail)
+                    .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                    .fullName(fullName != null ? fullName : finalEmail.split("@")[0])
+                    .avatarUrl(avatarUrl)
+                    .githubId(githubId)
+                    .authProvider(AuthProvider.GITHUB)
+                    .role(Role.CANDIDATE)
+                    .isActive(true)
+                    .build();
+            user = userRepository.save(user);
+            log.info("✅ New GitHub user registered: {} (githubId={})", finalEmail, githubId);
+
+        } else if (user.getGithubId() == null) {
+            // ── Case B: Email exists (LOCAL account) — link GitHub ─────
+            user.setGithubId(githubId);
+            user.setAuthProvider(AuthProvider.GITHUB);
+            // Sync profile info from GitHub
+            if (avatarUrl != null) {
+                user.setAvatarUrl(avatarUrl);
+            }
+            if (fullName != null && (user.getFullName() == null || user.getFullName().isBlank())) {
+                user.setFullName(fullName);
+            }
+            user = userRepository.save(user);
+            log.info("🔗 GitHub linked to existing LOCAL account: {} (githubId={})", finalEmail, githubId);
+
+        } else {
+            // ── Case C: Returning GitHub user — sync latest info ───────
+            boolean updated = false;
+            if (avatarUrl != null && !avatarUrl.equals(user.getAvatarUrl())) {
+                user.setAvatarUrl(avatarUrl);
+                updated = true;
+            }
+            if (fullName != null && !fullName.equals(user.getFullName())) {
+                user.setFullName(fullName);
+                updated = true;
+            }
+            if (updated) {
+                user = userRepository.save(user);
+                log.info("🔄 GitHub user profile synced: {} (githubId={})", finalEmail, githubId);
+            } else {
+                log.info("✅ Returning GitHub user: {} (githubId={})", finalEmail, githubId);
+            }
+        }
+
+        // ── Step 5: Issue JWT tokens ──────────────────────────────────
+        String accessToken  = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String refreshToken = createRefreshToken(user);
+
+        return buildAuthResponse(user, accessToken, refreshToken);
     }
 }
 

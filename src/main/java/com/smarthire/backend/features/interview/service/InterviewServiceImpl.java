@@ -74,42 +74,110 @@ public class InterviewServiceImpl implements InterviewService {
                 return;
             }
 
-            String email = profile.getUser().getEmail();
-            String candidateName = profile.getUser().getFullName();
-            String jobTitle = application.getJob().getTitle();
-            String scheduledTime = room.getScheduledAt() != null
-                    ? room.getScheduledAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                    : "Chưa xác định";
-            String meetingLink = room.getMeetingUrl() != null ? room.getMeetingUrl() : "Sẽ được cập nhật sau";
+            String email        = profile.getUser().getEmail();
+            String candidateName = profile.getUser().getFullName() != null ? profile.getUser().getFullName() : "ứng viên";
+            String jobTitle     = application.getJob().getTitle();
+            String companyName  = application.getJob().getCompany() != null ? application.getJob().getCompany().getName() : "Công ty";
 
-            String subject = "[SmartHire] 📋 Lịch phỏng vấn - " + jobTitle;
+            String scheduledTime = room.getScheduledAt() != null
+                    ? room.getScheduledAt().format(DateTimeFormatter.ofPattern("HH:mm, EEEE dd/MM/yyyy", new java.util.Locale("vi", "VN")))
+                    : "Sẽ được thông báo sau";
+
+            String meetingUrl = room.getMeetingUrl();
+
+            // Detect interview type from meetingUrl
+            String interviewTypeBadge;
+            String locationRow;
+            if (meetingUrl != null && meetingUrl.startsWith("https://meet.google.com")) {
+                interviewTypeBadge = "🖥️ Online (Google Meet)";
+                locationRow = "<tr><td style=\"padding:8px;color:#666;\">Link họp:</td>"
+                        + "<td style=\"padding:8px;\"><a href=\"" + meetingUrl + "\" style=\"color:#22c55e;\">" + meetingUrl + "</a></td></tr>";
+            } else if (meetingUrl != null && !meetingUrl.isBlank()) {
+                interviewTypeBadge = "📍 Phỏng vấn trực tiếp";
+                locationRow = "<tr><td style=\"padding:8px;color:#666;\">Địa điểm:</td>"
+                        + "<td style=\"padding:8px;font-weight:bold;\">" + meetingUrl + "</td></tr>";
+            } else {
+                interviewTypeBadge = "📞 Phỏng vấn qua điện thoại";
+                locationRow = "";
+            }
+
+            String subject = "[SmartHire] 📅 Thư mời phỏng vấn — " + jobTitle;
             String body = """
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-                        <h2 style="color: #2563eb;">SmartHire</h2>
-                        <p>Xin chào <strong>%s</strong>,</p>
-                        <p>Bạn đã được mời tham gia buổi phỏng vấn cho vị trí <strong>%s</strong>.</p>
-                        <table style="border-collapse: collapse; margin: 16px 0;">
-                            <tr><td style="padding: 8px; color: #666;">Phòng:</td><td style="padding: 8px; font-weight: bold;">%s</td></tr>
-                            <tr><td style="padding: 8px; color: #666;">Thời gian:</td><td style="padding: 8px; font-weight: bold;">%s</td></tr>
-                            <tr><td style="padding: 8px; color: #666;">Thời lượng:</td><td style="padding: 8px; font-weight: bold;">%d phút</td></tr>
-                            <tr><td style="padding: 8px; color: #666;">Link:</td><td style="padding: 8px;">%s</td></tr>
-                        </table>
-                        <p>Vui lòng đăng nhập vào hệ thống để xem chi tiết và chuẩn bị cho buổi phỏng vấn.</p>
-                        <br/>
-                        <p>Trân trọng,<br/><strong>Đội ngũ SmartHire</strong></p>
-                    </div>
+                    <!DOCTYPE html>
+                    <html lang="vi">
+                    <head><meta charset="UTF-8"></head>
+                    <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+                      <div style="max-width:600px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                    
+                        <!-- Header -->
+                        <div style="background:linear-gradient(135deg,#22c55e,#16a34a);padding:32px 40px;">
+                          <h1 style="color:#fff;margin:0;font-size:26px;font-weight:700;">SmartHire</h1>
+                          <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:14px;">Hệ thống tuyển dụng thông minh</p>
+                        </div>
+                    
+                        <!-- Body -->
+                        <div style="padding:36px 40px;">
+                          <h2 style="margin:0 0 8px;color:#1a1a1a;font-size:22px;">Thư mời phỏng vấn 🎉</h2>
+                          <p style="color:#555;font-size:15px;margin:0 0 24px;">Xin chào <strong>%s</strong>,</p>
+                          <p style="color:#555;font-size:15px;margin:0 0 24px;">
+                            Chúng tôi trân trọng thông báo bạn đã được chọn để tham gia buổi phỏng vấn
+                            cho vị trí <strong style="color:#16a34a;">%s</strong> tại <strong>%s</strong>.
+                          </p>
+                    
+                          <!-- Interview Details Card -->
+                          <div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:8px;padding:20px 24px;margin-bottom:24px;">
+                            <p style="font-weight:700;color:#15803d;margin:0 0 14px;font-size:15px;">📋 Thông tin buổi phỏng vấn</p>
+                            <table style="border-collapse:collapse;width:100%%;">
+                              <tr>
+                                <td style="padding:7px 0;color:#666;width:130px;font-size:14px;">Tên phòng:</td>
+                                <td style="padding:7px 0;font-weight:600;color:#1a1a1a;font-size:14px;">%s</td>
+                              </tr>
+                              <tr>
+                                <td style="padding:7px 0;color:#666;font-size:14px;">Hình thức:</td>
+                                <td style="padding:7px 0;font-weight:600;color:#1a1a1a;font-size:14px;">%s</td>
+                              </tr>
+                              <tr>
+                                <td style="padding:7px 0;color:#666;font-size:14px;">Thời gian:</td>
+                                <td style="padding:7px 0;font-weight:600;color:#1a1a1a;font-size:14px;">%s</td>
+                              </tr>
+                              <tr>
+                                <td style="padding:7px 0;color:#666;font-size:14px;">Thời lượng:</td>
+                                <td style="padding:7px 0;font-weight:600;color:#1a1a1a;font-size:14px;">%d phút</td>
+                              </tr>
+                              %s
+                            </table>
+                          </div>
+                    
+                          <p style="color:#555;font-size:14px;">
+                            Vui lòng chuẩn bị đầy đủ và đúng giờ. Nếu bạn có bất kỳ câu hỏi nào,
+                            vui lòng liên hệ bộ phận nhân sự.
+                          </p>
+                        </div>
+                    
+                        <!-- Footer -->
+                        <div style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;text-align:center;">
+                          <p style="color:#9ca3af;font-size:12px;margin:0;">
+                            © 2026 SmartHire. Email này được gửi tự động, vui lòng không trả lời.
+                          </p>
+                        </div>
+                      </div>
+                    </body>
+                    </html>
                     """.formatted(
-                    candidateName != null ? candidateName : "bạn",
+                    candidateName,
                     jobTitle,
+                    companyName,
                     room.getRoomName(),
+                    interviewTypeBadge,
                     scheduledTime,
                     room.getDurationMinutes(),
-                    meetingLink
+                    locationRow
             );
 
             emailService.sendHtmlEmail(email, subject, body);
+            log.info("✅ Interview invitation email sent to {} for job '{}'", email, jobTitle);
         } catch (Exception e) {
-            log.error("Failed to send interview notification for room {}: {}", room.getId(), e.getMessage());
+            log.error("❌ Failed to send interview notification for room {}: {}", room.getId(), e.getMessage());
         }
     }
 

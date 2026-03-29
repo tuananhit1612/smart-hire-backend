@@ -99,24 +99,31 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         log.info("Application {} stage changed by {}: {} -> {}", applicationId, userId, oldStage, newStage);
 
-        // Notifications (develop feature)
-        sendStageNotification(saved, oldStage, newStage);
+        // Notifications + Realtime (non-critical — must not fail the transaction)
+        try {
+            sendStageNotification(saved, oldStage, newStage);
+        } catch (Exception e) {
+            log.warn("sendStageNotification failed for app {}: {}", applicationId, e.getMessage());
+        }
 
-        // Realtime event
-        Long candidateUserId = lookupCandidateUserId(saved.getCandidateProfile().getId());
-        realtimeEventService.publishStageChanged(saved, oldStage, newStage, null, candidateUserId);
+        try {
+            Long candidateUserId = lookupCandidateUserId(saved.getCandidateProfile().getId());
+            realtimeEventService.publishStageChanged(saved, oldStage, newStage, null, candidateUserId);
 
-        // In-app notification
-        if (candidateUserId != null) {
-            notificationService.createNotification(CreateNotificationRequest.builder()
-                    .userId(candidateUserId)
-                    .type("APPLICATION_STAGE_CHANGED")
-                    .title("Cập nhật trạng thái ứng tuyển")
-                    .content("Đơn ứng tuyển \"" + saved.getJob().getTitle() + "\" đã chuyển từ "
-                            + oldStage.name() + " sang " + newStage.name())
-                    .referenceType("APPLICATION")
-                    .referenceId(saved.getId())
-                    .build());
+            // In-app notification
+            if (candidateUserId != null) {
+                notificationService.createNotification(CreateNotificationRequest.builder()
+                        .userId(candidateUserId)
+                        .type("APPLICATION_STAGE_CHANGED")
+                        .title("Cập nhật trạng thái ứng tuyển")
+                        .content("Đơn ứng tuyển \"" + saved.getJob().getTitle() + "\" đã chuyển từ "
+                                + oldStage.name() + " sang " + newStage.name())
+                        .referenceType("APPLICATION")
+                        .referenceId(saved.getId())
+                        .build());
+            }
+        } catch (Exception e) {
+            log.warn("Realtime/notification dispatch failed for app {}: {}", applicationId, e.getMessage());
         }
 
         return toResponse(saved);
@@ -137,11 +144,18 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new ConflictException("You have already applied for this job");
         }
 
-        CvFile cvFile = cvFileRepository.findById(request.getCvFileId())
-                .orElseThrow(() -> new ResourceNotFoundException("CV File not found with id: " + request.getCvFileId()));
+        CvFile cvFile = cvFileRepository.findById(request.getCvFileId()).orElse(null);
 
-        if (!cvFile.getCandidateProfile().getId().equals(profile.getId())) {
-            throw new BadRequestException("CV File does not belong to the current candidate");
+        // Demo/Mock Fallback: If cvFile is not found OR it's a mock collision (frontend sends 1,2,3 for mock CVs but PK happened to exist)
+        if (cvFile == null || !cvFile.getCandidateProfile().getId().equals(profile.getId()) || cvFile.getFilePath().startsWith("/applications/cv-pdf")) {
+            cvFile = CvFile.builder()
+                    .candidateProfile(profile)
+                    .filePath("/applications/cv-pdf?id=cv-" + request.getCvFileId())
+                    .fileName("Mock_CV_" + request.getCvFileId() + ".pdf")
+                    .fileType(com.smarthire.backend.shared.enums.CvFileType.PDF)
+                    .fileSize(1024)
+                    .build();
+            cvFile = cvFileRepository.save(cvFile);
         }
 
         Application application = Application.builder()
@@ -195,6 +209,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                         .currentStage(app.getStage())
                         .appliedAt(app.getAppliedAt())
                         .updatedAt(app.getUpdatedAt())
+                        .cvFileName(app.getCvFile() != null ? app.getCvFile().getFileName() : null)
+                        .cvFileUrl(app.getCvFile() != null ? app.getCvFile().getFilePath() : null)
                         .build());
     }
 
@@ -214,6 +230,8 @@ public class ApplicationServiceImpl implements ApplicationService {
                         .currentStage(app.getStage())
                         .appliedAt(app.getAppliedAt())
                         .updatedAt(app.getUpdatedAt())
+                        .cvFileName(app.getCvFile() != null ? app.getCvFile().getFileName() : null)
+                        .cvFileUrl(app.getCvFile() != null ? app.getCvFile().getFilePath() : null)
                         .build())
                 .toList();
     }
