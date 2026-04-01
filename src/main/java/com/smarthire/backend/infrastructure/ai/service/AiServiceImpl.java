@@ -89,8 +89,8 @@ public class AiServiceImpl implements AiService {
                 job.getJobLevel() != null ? job.getJobLevel().name() : "N/A"
         );
 
-        // Gọi Gemini text chat
-        String aiResponse = geminiClient.chat(prompt);
+        // Gọi Ollama text chat
+        String aiResponse = ollamaClient.chat(prompt);
 
         // Parse JSON → ApplicationAiResult
         return parseMatchResponse(aiResponse, application);
