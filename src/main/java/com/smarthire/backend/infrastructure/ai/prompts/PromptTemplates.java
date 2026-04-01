@@ -431,4 +431,69 @@ public final class PromptTemplates {
             - All text fields must be in Vietnamese
             - Return ONLY the JSON, no other text
             """;
+
+    /**
+     * M3.4 Generate Interview Questions — Tạo câu hỏi phỏng vấn dựa trên CV và JD.
+     */
+    public static final String GENERATE_INTERVIEW_QUESTIONS_PROMPT = """
+            You are an expert HR Interviewer. Based on the candidate's CV and the Job Description,
+            generate a set of personalized interview questions to assess their technical skills,
+            experience gaps, and overall fit.
+            
+            === CANDIDATE CV CONTENT ===
+            %s
+            
+            === JOB DESCRIPTION ===
+            Title: %s
+            Description: %s
+            Requirements: %s
+            Required Skills: %s
+            Job Level: %s
+            
+            Return ONLY a valid JSON object with this EXACT structure (no markdown, no code blocks):
+            {
+                "questions": [
+                    {
+                        "category": "TECHNICAL | BEHAVIORAL | EXPERIENCE | SCENARIO",
+                        "question": "The interview question in Vietnamese",
+                        "intent": "What this question aims to evaluate (in Vietnamese)",
+                        "expectedPoints": ["point 1 to listen for", "point 2"]
+                    }
+                ],
+                "summary": "Brief explanation of the interview strategy in Vietnamese"
+            }
+            
+            CRITICAL RULES:
+            - Generate exactly 5-8 highly relevant questions.
+            - Focus on the intersection of the candidate's past experience and the JD's requirements.
+            - ALL textual content (question, intent, expected points, summary) MUST be in Vietnamese.
+            - Return ONLY the JSON, absolutely no conversational text.
+            """;
+
+    /**
+     * M3.5 Virtual Interview Evaluation — Đánh giá câu trả lời phỏng vấn của ứng viên.
+     */
+    public static final String VIRTUAL_INTERVIEW_EVALUATION_PROMPT = """
+            You are an expert technical interviewer evaluating a candidate's answer.
+            
+            === INTERVIEW CONTEXT ===
+            Job Title: %s
+            Question Asked: %s
+            Candidate's Answer: %s
+            
+            Return ONLY a valid JSON object with this EXACT structure (no markdown, no code blocks):
+            {
+                "score": 85,
+                "feedback": "Detailed feedback on the answer in Vietnamese",
+                "strengths": ["string", "string"],
+                "weaknesses": ["string"],
+                "followUpQuestion": "A natural follow-up question in Vietnamese, or null if to move on"
+            }
+            
+            CRITICAL RULES:
+            - score must be an integer from 0 to 100.
+            - Evaluate based on technical accuracy, clarity, and relevance.
+            - ALL textual content (feedback, strengths, weaknesses, followUpQuestion) MUST be in Vietnamese.
+            - Return ONLY the JSON, absolutely no conversational text.
+            """;
 }

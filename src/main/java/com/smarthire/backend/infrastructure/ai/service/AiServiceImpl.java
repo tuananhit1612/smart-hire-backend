@@ -8,6 +8,7 @@ import com.smarthire.backend.features.application.entity.ApplicationAiResult;
 import com.smarthire.backend.features.candidate.entity.AiCvReview;
 import com.smarthire.backend.features.candidate.entity.CvFile;
 import com.smarthire.backend.features.candidate.repository.CvFileRepository;
+import com.smarthire.backend.features.job.entity.Job;
 import com.smarthire.backend.features.onboarding.dto.VerifiedCvData;
 import com.smarthire.backend.infrastructure.ai.client.OllamaClient;
 import com.smarthire.backend.infrastructure.ai.client.CvTextExtractor;
@@ -156,7 +157,41 @@ public class AiServiceImpl implements AiService {
         return cleanJsonResponse(aiResponse);
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━ Private helpers ━━━━━━━━━━━━━━━━━━━━
+    @Override
+    public String generateInterviewQuestions(Application application) {
+        Job job = application.getJob();
+        String cvText = extractCvContent(application);
+
+        String prompt = String.format(
+                PromptTemplates.GENERATE_INTERVIEW_QUESTIONS_PROMPT,
+                cvText != null ? cvText : "Candidate CV content not available",
+                job.getTitle(),
+                job.getDescription() != null ? job.getDescription() : "N/A",
+                job.getRequirements() != null ? job.getRequirements() : "N/A",
+                job.getSkills() != null ? job.getSkills().stream().map(s -> s.getSkillName()).reduce((a, b) -> a + ", " + b).orElse("N/A") : "N/A",
+                job.getJobLevel() != null ? job.getJobLevel().name() : "N/A"
+        );
+
+        String aiResponse = ollamaClient.chat(prompt);
+        return cleanJsonResponse(aiResponse);
+    }
+
+    @Override
+    public String evaluateVirtualInterviewAnswer(String jobTitle, String question, String answer) {
+        String prompt = String.format(
+                PromptTemplates.VIRTUAL_INTERVIEW_EVALUATION_PROMPT,
+                jobTitle,
+                question,
+                answer
+        );
+
+        String aiResponse = ollamaClient.chat(prompt);
+        return cleanJsonResponse(aiResponse);
+    }
+
+    // ==============================================================================================
+    // PRIVATE HELPER METHODS
+    // ==============================================================================================
 
     private String getMimeType(String fileName) {
         if (fileName == null) return "application/pdf";
