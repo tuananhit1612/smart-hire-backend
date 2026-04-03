@@ -50,7 +50,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // ── Public endpoints ──
                 .requestMatchers("/api/health").permitAll()
-                .requestMatchers(ApiPaths.AUTH + "/**").permitAll()
+                .requestMatchers(
+                    ApiPaths.AUTH + "/register",
+                    ApiPaths.AUTH + "/login",
+                    ApiPaths.AUTH + "/refresh-token",
+                    ApiPaths.AUTH + "/forgot-password",
+                    ApiPaths.AUTH + "/reset-password"
+                ).permitAll()
 
                 // ── Swagger / OpenAPI ──
                 .requestMatchers(
