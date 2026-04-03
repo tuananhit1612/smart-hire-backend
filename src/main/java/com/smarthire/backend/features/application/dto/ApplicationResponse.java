@@ -31,4 +31,6 @@ public class ApplicationResponse {
     
     private ApplicationStage stage;
     private LocalDateTime appliedAt;
+    private LocalDateTime updatedAt;
+    private java.util.List<StageHistoryDto> stageHistory;
 }

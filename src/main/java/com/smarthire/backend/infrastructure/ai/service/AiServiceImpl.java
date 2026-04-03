@@ -448,6 +448,7 @@ public class AiServiceImpl implements AiService {
 
             List<String> strengths = jsonArrayToList(node, "strengths");
             List<String> gaps = jsonArrayToList(node, "gaps");
+            List<String> recommendations = jsonArrayToList(node, "recommendations");
             String explanation = getTextOrEmpty(node, "explanation");
 
             return ApplicationAiResult.builder()
@@ -458,6 +459,7 @@ public class AiServiceImpl implements AiService {
                     .summary(explanation)
                     .strengths(strengths)
                     .gaps(gaps)
+                    .recommendations(recommendations)
                     .build();
         } catch (Exception e) {
             log.error("❌ Failed to parse Match AI response: {}", e.getMessage());
@@ -470,6 +472,7 @@ public class AiServiceImpl implements AiService {
                     .summary("AI analysis could not be completed. Please try again.")
                     .strengths(List.of())
                     .gaps(List.of("AI parsing failed"))
+                    .recommendations(List.of())
                     .build();
         }
     }

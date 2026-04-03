@@ -47,6 +47,11 @@ public class ApplicationAiResult {
     @Column(name = "gap")
     private List<String> gaps;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "application_ai_recommendations", joinColumns = @JoinColumn(name = "ai_result_id"))
+    @Column(name = "recommendation")
+    private List<String> recommendations;
+
     @Column(name = "analyzed_at", nullable = false)
     @Builder.Default
     private LocalDateTime analyzedAt = LocalDateTime.now();
