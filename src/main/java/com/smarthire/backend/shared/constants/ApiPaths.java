@@ -4,8 +4,9 @@ public final class ApiPaths {
 
     private ApiPaths() {}
 
-    public static final String BASE = "/api";
+    public static final String BASE = "/api/v1";
     public static final String AUTH = BASE + "/auth";
+    public static final String PUBLIC = BASE + "/public";
     public static final String USERS = BASE + "/users";
     public static final String COMPANIES = BASE + "/companies";
     public static final String JOBS = BASE + "/jobs";

@@ -31,4 +31,5 @@ public class EmployerApplicationResponse {
     private List<String> skills;
     private List<EmployerApplicationActivityResponse> activities;
     private List<EmployerApplicationNoteResponse> notes;
+    private String onboardingProgress; // e.g. "4/6"
 }

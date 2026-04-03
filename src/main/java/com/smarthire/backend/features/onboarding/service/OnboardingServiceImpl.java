@@ -1,6 +1,5 @@
 package com.smarthire.backend.features.onboarding.service;
 
-import com.smarthire.backend.core.exception.BadRequestException;
 import com.smarthire.backend.core.exception.ResourceNotFoundException;
 import com.smarthire.backend.core.security.SecurityUtils;
 import com.smarthire.backend.features.auth.entity.User;

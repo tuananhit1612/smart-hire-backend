@@ -495,5 +495,39 @@ public final class PromptTemplates {
             - Evaluate based on technical accuracy, clarity, and relevance.
             - ALL textual content (feedback, strengths, weaknesses, followUpQuestion) MUST be in Vietnamese.
             - Return ONLY the JSON, absolutely no conversational text.
+=======
+            Rules for generating the response:
+            - overallRating must be a number between 0 and 10
+            - Identify 2-5 strengths and 2-5 weaknesses.
+            - Provide 3-8 issues and 3-6 suggestions
+            - 'quote' in issues MUST be exact words from the CV. Do NOT paraphrase it. If the issue is a missing section (e.g., no email), quote can be "N/A" or empty string.
+            - CRITICAL: All textual output in the JSON (description, section, suggestion, strengths, weaknesses, summary) MUST be written in 100% Vietnamese (Tiếng Việt). Exception: The 'quote' field MUST remain in the original language of the CV exactly as written.
+            - Return ONLY the JSON, absolutely no conversational text, no JSON markdown blocks.
+>>>>>>> Stashed changes
+            """;
+
+    /**
+     * ID Verification — Kiểm duyệt và trích xuất thông tin từ ảnh CMND/CCCD.
+     */
+    public static final String ONBOARDING_ID_VERIFY_PROMPT = """
+            You are a strict security and KYC verification expert for Vietnam ID cards (CMND/CCCD).
+            Please analyze the attached image.
+            
+            Return ONLY a valid JSON object with this EXACT structure (no markdown, no code blocks):
+            {
+                "isValid": true,
+                "feedbackReason": "If isValid is false, explain why (e.g. 'Ảnh bị mờ', 'Không phải thẻ CCCD', 'Phát hiện chụp từ màn hình', 'Có chứa nội dung 18+'). If true, leave empty",
+                "extractedName": "Họ và Tên trích xuất từ thẻ (nếu có)",
+                "extractedIdNumber": "Số CCCD/CMND (nếu có)",
+                "extractedDob": "Ngày sinh (nếu có)"
+            }
+            
+            Rules:
+            - Check for inappropriate content (NSFW/Violence). If found, reject immediately (isValid = false).
+            - Check if the document appears to be a legitimate Vietnam ID document.
+            - Check for major signs of forgery or taking a photo of a screen (moiré patterns).
+            - Extract the data accurately inside the extracted fields. 
+            - feedbackReason MUST be in Vietnamese.
+            - Return ONLY the JSON object.
             """;
 }

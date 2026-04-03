@@ -48,17 +48,17 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         // ── Public endpoints ──
-                        .requestMatchers("/api/health").permitAll()
+                        .requestMatchers("/api/v1/health", "/api/health").permitAll()
                         .requestMatchers(
                                 ApiPaths.AUTH + "/register",
                                 ApiPaths.AUTH + "/login",
                                 ApiPaths.AUTH + "/refresh-token",
                                 ApiPaths.AUTH + "/forgot-password",
-                                ApiPaths.AUTH + "/reset-password",
-                                ApiPaths.AUTH + "/verify-reset-token",
-                                ApiPaths.AUTH + "/test-token",
-                                ApiPaths.AUTH + "/github/callback")
+                                ApiPaths.AUTH + "/reset-password")
                         .permitAll()
+
+                        // ── Public browsable content (no login required) ──
+                        .requestMatchers(HttpMethod.GET, ApiPaths.PUBLIC + "/**").permitAll()
 
                         // ── Swagger / OpenAPI ──
                         .requestMatchers(
@@ -73,9 +73,7 @@ public class SecurityConfig {
                         // ── WebSocket STOMP endpoint (auth at STOMP layer) ──
                         .requestMatchers("/ws/**").permitAll()
 
-                        // ── Public job listing (browsable without login) ──
-                        .requestMatchers(HttpMethod.GET, ApiPaths.JOBS + "/public", ApiPaths.JOBS + "/public/**")
-                        .permitAll()
+                        // ── Public company listing ──
                         .requestMatchers(HttpMethod.GET, ApiPaths.COMPANIES, ApiPaths.COMPANIES + "/**").permitAll()
 
                         // ── Admin-only endpoints ──
@@ -84,12 +82,9 @@ public class SecurityConfig {
                         // ── HR + Admin endpoints ──
                         .requestMatchers(HttpMethod.POST, ApiPaths.JOBS).hasAnyRole("HR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
                         .requestMatchers(ApiPaths.COMPANIES + "/**").hasAnyRole("HR", "ADMIN")
-                        .requestMatchers(ApiPaths.DASHBOARD + "/candidate/**").hasAnyRole("CANDIDATE", "ADMIN")
                         .requestMatchers(ApiPaths.DASHBOARD + "/**").hasAnyRole("HR", "ADMIN")
-                        .requestMatchers("/api/employer/**").hasAnyRole("HR", "ADMIN")
 
                         // ── Everything else requires authentication ──
                         .anyRequest().authenticated())

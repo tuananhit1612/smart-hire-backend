@@ -261,7 +261,9 @@ public class HrDashboardServiceImpl implements HrDashboardService {
         if (stage == null) return "Unknown";
         return switch (stage) {
             case APPLIED -> "Applied";
+            case SCREENING -> "Screening";
             case INTERVIEW -> "Interview";
+            case OFFER -> "Offer";
             case HIRED -> "Hired";
             case REJECTED -> "Rejected";
         };

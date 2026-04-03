@@ -45,4 +45,10 @@ public interface AiService {
      * Output: JSON string of score, feedback, and follow-up question.
      */
     String evaluateVirtualInterviewAnswer(String jobTitle, String question, String answer);
+
+    /**
+     * Verify ID card image for Onboarding.
+     * Checks for spoofing, NSFW, and extracts OCR info (Name, ID, DoB).
+     */
+    com.smarthire.backend.features.onboarding.dto.OnboardingAiVerificationResult verifyIdCardImage(java.nio.file.Path imagePath, String mimeType);
 }
