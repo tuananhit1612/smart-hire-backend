@@ -40,38 +40,60 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(ex -> ex
-                .authenticationEntryPoint(authenticationEntryPoint)
-                .accessDeniedHandler(accessDeniedHandler)
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health").permitAll()
-                .requestMatchers(
-                    ApiPaths.AUTH + "/register",
-                    ApiPaths.AUTH + "/login",
-                    ApiPaths.AUTH + "/refresh-token",
-                    ApiPaths.AUTH + "/forgot-password",
-                    ApiPaths.AUTH + "/reset-password"
-                ).permitAll()
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
-                .requestMatchers(HttpMethod.GET, ApiPaths.JOBS + "/public", ApiPaths.JOBS + "/public/**").permitAll()
-                .requestMatchers(HttpMethod.GET, ApiPaths.COMPANIES, ApiPaths.COMPANIES + "/**").permitAll()
-                .requestMatchers(ApiPaths.ADMIN + "/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.POST, ApiPaths.JOBS).hasAnyRole("HR", "ADMIN")
-                .requestMatchers(HttpMethod.PUT, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
-                .requestMatchers(HttpMethod.DELETE, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
-                .requestMatchers(ApiPaths.COMPANIES + "/**").hasAnyRole("HR", "ADMIN")
-                .requestMatchers(ApiPaths.DASHBOARD + "/**").hasAnyRole("HR", "ADMIN")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .authorizeHttpRequests(auth -> auth
+                        // ── Public endpoints ──
+                        .requestMatchers("/api/v1/health", "/api/health").permitAll()
+                        .requestMatchers(
+                                ApiPaths.AUTH + "/register",
+                                ApiPaths.AUTH + "/login",
+                                ApiPaths.AUTH + "/refresh-token",
+                                ApiPaths.AUTH + "/forgot-password",
+                                ApiPaths.AUTH + "/reset-password")
+                        .permitAll()
+
+                        // ── Public browsable content (no login required) ──
+                        .requestMatchers(HttpMethod.GET, ApiPaths.PUBLIC + "/**").permitAll()
+
+                        // ── Swagger / OpenAPI ──
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**")
+                        .permitAll()
+
+                        // ── Static uploads ──
+                        .requestMatchers("/uploads/**").permitAll()
+
+                        // ── WebSocket STOMP endpoint (auth at STOMP layer) ──
+                        .requestMatchers("/ws/**").permitAll()
+
+                        // ── Public company listing ──
+                        .requestMatchers(HttpMethod.GET, ApiPaths.COMPANIES, ApiPaths.COMPANIES + "/**").permitAll()
+
+                        // ── Admin-only endpoints ──
+                        .requestMatchers(ApiPaths.ADMIN + "/**").hasRole("ADMIN")
+
+                        // ── HR + Admin endpoints ──
+                        .requestMatchers(HttpMethod.POST, ApiPaths.JOBS).hasAnyRole("HR", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
+                        .requestMatchers(ApiPaths.COMPANIES + "/**").hasAnyRole("HR", "ADMIN")
+                        .requestMatchers(ApiPaths.DASHBOARD + "/**").hasAnyRole("HR", "ADMIN")
+
+                        // ── Everything else requires authentication ──
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
+
+    // ── CORS ──
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -81,13 +103,18 @@ public class SecurityConfig {
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
 
+    // ── Beans ──
+
     @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
