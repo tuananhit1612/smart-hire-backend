@@ -4,9 +4,16 @@ import com.smarthire.backend.features.application.entity.ApplicationAiResult;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface ApplicationAiResultRepository extends JpaRepository<ApplicationAiResult, Long> {
     Optional<ApplicationAiResult> findByApplicationId(Long applicationId);
+
+    List<ApplicationAiResult> findByApplicationJobId(Long jobId);
+
+    boolean existsByApplicationId(Long applicationId);
+
+    void deleteByApplicationId(Long applicationId);
 }
