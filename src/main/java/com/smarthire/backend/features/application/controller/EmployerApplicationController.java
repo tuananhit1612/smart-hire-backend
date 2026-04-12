@@ -5,6 +5,7 @@ import com.smarthire.backend.features.application.dto.ChangeStageRequest;
 import com.smarthire.backend.features.application.dto.employer.*;
 import com.smarthire.backend.features.application.service.AiFilterService;
 import com.smarthire.backend.features.application.service.EmployerApplicationService;
+import com.smarthire.backend.shared.constants.ApiPaths;
 import com.smarthire.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/employer/jobs")
+@RequestMapping(ApiPaths.BASE + "/employer/jobs")
 @RequiredArgsConstructor
 @Tag(name = "Employer Applications", description = "APIs for Employer to manage and view applicants with AI Analysis")
 public class EmployerApplicationController {

@@ -79,7 +79,7 @@ public class CandidateDashboardServiceImpl implements CandidateDashboardService 
                         .jobTitle(app.getJob().getTitle())
                         .companyName(app.getJob().getCompany() != null
                                 ? app.getJob().getCompany().getName() : "N/A")
-                        .currentStage(app.getStage().name())
+                        .currentStage(app.getStage() != null ? app.getStage().name() : "N/A")
                         .appliedAt(app.getAppliedAt() != null ? app.getAppliedAt().format(fmt) : "")
                         .updatedAt(app.getUpdatedAt() != null ? app.getUpdatedAt().format(fmt) : "")
                         .build())

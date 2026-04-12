@@ -69,6 +69,29 @@ public class FileStorageService {
     }
 
     /**
+     * Upload hồ sơ onboarding (Chấp nhận cả ảnh và tài liệu PDF/DOCX).
+     */
+    public String storeOnboardingFile(MultipartFile file, String subDir) {
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("File is required");
+        }
+
+        if (file.getSize() > maxFileSize) {
+            throw new BadRequestException("File size must not exceed " + (maxFileSize / 1024 / 1024) + "MB");
+        }
+
+        String contentType = file.getContentType();
+        boolean isImage = contentType != null && allowedImageTypes.contains(contentType);
+        boolean isDoc = contentType != null && allowedDocumentTypes.contains(contentType);
+
+        if (!isImage && !isDoc) {
+            throw new BadRequestException("Invalid file type. Allowed: Image (jpeg, png, webp) or Document (pdf, docx)");
+        }
+
+        return storeFile(file, subDir);
+    }
+
+    /**
      * Xóa file theo đường dẫn relative.
      */
     public void deleteFile(String relativePath) {

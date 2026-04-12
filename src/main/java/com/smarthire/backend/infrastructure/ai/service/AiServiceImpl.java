@@ -8,8 +8,14 @@ import com.smarthire.backend.features.application.entity.ApplicationAiResult;
 import com.smarthire.backend.features.candidate.entity.AiCvReview;
 import com.smarthire.backend.features.candidate.entity.CvFile;
 import com.smarthire.backend.features.candidate.repository.CvFileRepository;
+import com.smarthire.backend.features.job.entity.Job;
+import com.smarthire.backend.features.onboarding.dto.OnboardingAiVerificationResult;
 import com.smarthire.backend.features.onboarding.dto.VerifiedCvData;
+import com.smarthire.backend.infrastructure.ai.client.OllamaClient;
+import com.smarthire.backend.infrastructure.ai.client.CvTextExtractor;
+import com.smarthire.backend.infrastructure.ai.client.FptAiClient;
 import com.smarthire.backend.infrastructure.ai.client.GeminiClient;
+import com.smarthire.backend.infrastructure.ai.dto.FptAiIdrResponse;
 import com.smarthire.backend.infrastructure.ai.prompts.PromptTemplates;
 import com.smarthire.backend.infrastructure.storage.FileStorageService;
 import com.smarthire.backend.shared.enums.Gender;
@@ -31,7 +37,10 @@ import java.util.List;
 @Slf4j
 public class AiServiceImpl implements AiService {
 
+    private final OllamaClient ollamaClient;
+    private final CvTextExtractor cvTextExtractor;
     private final GeminiClient geminiClient;
+    private final FptAiClient fptAiClient;
     private final CvFileRepository cvFileRepository;
     private final FileStorageService fileStorageService;
     private final com.smarthire.backend.features.candidate.repository.AiCvReviewRepository aiCvReviewRepository;
@@ -48,8 +57,12 @@ public class AiServiceImpl implements AiService {
         Path filePath = fileStorageService.getFilePath(cvFile.getFilePath());
         String mimeType = getMimeType(cvFile.getFileName());
 
-        // Gọi Gemini với file upload
-        String aiResponse = geminiClient.chatWithFile(filePath, mimeType, PromptTemplates.CV_PARSE_PROMPT);
+        // Extract raw text locally
+        String cvText = cvTextExtractor.extractText(filePath, mimeType);
+
+        // Gọi Ollama
+        String prompt = String.format(PromptTemplates.CV_PARSE_PROMPT, cvText);
+        String aiResponse = ollamaClient.chat(prompt);
 
         // Parse JSON response → VerifiedCvData
         return parseCvResponse(aiResponse, cvFileId);
@@ -81,8 +94,8 @@ public class AiServiceImpl implements AiService {
                 job.getJobLevel() != null ? job.getJobLevel().name() : "N/A"
         );
 
-        // Gọi Gemini text chat
-        String aiResponse = geminiClient.chat(prompt);
+        // Gọi Ollama text chat
+        String aiResponse = ollamaClient.chat(prompt);
 
         // Parse JSON → ApplicationAiResult
         return parseMatchResponse(aiResponse, application);
@@ -109,10 +122,12 @@ public class AiServiceImpl implements AiService {
             log.warn("Could not load cv-review-rules.json: {}", e.getMessage());
         }
 
-        String prompt = String.format(PromptTemplates.CV_REVIEW_PROMPT, rules);
+        String cvText = cvTextExtractor.extractText(filePath, mimeType);
 
-        // Gọi Gemini với file upload
-        String aiResponse = geminiClient.chatWithFile(filePath, mimeType, prompt);
+        String prompt = String.format(PromptTemplates.CV_REVIEW_PROMPT, rules, cvText);
+
+        // Gọi Ollama với prompt (chứa text, rules)
+        String aiResponse = ollamaClient.chat(prompt);
 
         // Parse JSON → AiCvReview entity
         return parseReviewResponse(aiResponse, cvFile);
@@ -140,13 +155,169 @@ public class AiServiceImpl implements AiService {
             log.warn("Could not load latest review for optimization: {}", e.getMessage());
         }
 
-        String prompt = String.format(PromptTemplates.CV_OPTIMIZE_PROMPT, reviewJson);
-        String aiResponse = geminiClient.chatWithFile(filePath, mimeType, prompt);
+        String cvText = cvTextExtractor.extractText(filePath, mimeType);
+
+        String prompt = String.format(PromptTemplates.CV_OPTIMIZE_PROMPT, reviewJson, cvText);
+        String aiResponse = ollamaClient.chat(prompt);
 
         return cleanJsonResponse(aiResponse);
     }
 
-    // ━━━━━━━━━━━━━━━━━━━━ Private helpers ━━━━━━━━━━━━━━━━━━━━
+    @Override
+    public String generateInterviewQuestions(Application application) {
+        Job job = application.getJob();
+        String cvText = extractCvContent(application);
+
+        String prompt = String.format(
+                PromptTemplates.GENERATE_INTERVIEW_QUESTIONS_PROMPT,
+                cvText != null ? cvText : "Candidate CV content not available",
+                job.getTitle(),
+                job.getDescription() != null ? job.getDescription() : "N/A",
+                job.getRequirements() != null ? job.getRequirements() : "N/A",
+                job.getSkills() != null ? job.getSkills().stream().map(s -> s.getSkillName()).reduce((a, b) -> a + ", " + b).orElse("N/A") : "N/A",
+                job.getJobLevel() != null ? job.getJobLevel().name() : "N/A"
+        );
+
+        String aiResponse = ollamaClient.chat(prompt);
+        return cleanJsonResponse(aiResponse);
+    }
+
+    @Override
+    public String evaluateVirtualInterviewAnswer(String jobTitle, String question, String answer) {
+        String prompt = String.format(
+                PromptTemplates.VIRTUAL_INTERVIEW_EVALUATION_PROMPT,
+                jobTitle,
+                question,
+                answer
+        );
+
+        String aiResponse = ollamaClient.chat(prompt);
+        return cleanJsonResponse(aiResponse);
+    }
+
+    @Override
+    public OnboardingAiVerificationResult verifyIdCardImage(Path imagePath, String mimeType) {
+        log.info("🤖 AI Verify ID Card Image (FPT AI) — filePath={}", imagePath.getFileName());
+
+        try {
+            // Call FPT AI IDR API
+            FptAiIdrResponse response = fptAiClient.recognizeIdCard(imagePath);
+            
+            if (response == null || response.getErrorCode() != 0) {
+                String errorMsg = response != null ? response.getErrorMessage() : "Không nhận được phản hồi từ FPT AI";
+                log.error("❌ FPT AI IDR Error: {} (code={})", errorMsg, response != null ? response.getErrorCode() : -1);
+                
+                return OnboardingAiVerificationResult.builder()
+                        .isValid(false)
+                        .feedbackReason("Lỗi hệ thống AI (FPT): " + errorMsg)
+                        .build();
+            }
+
+            if (response.getData() == null || response.getData().isEmpty()) {
+                return OnboardingAiVerificationResult.builder()
+                        .isValid(false)
+                        .feedbackReason("Không tìm thấy dữ liệu trên ảnh CMND/CCCD. Vui lòng chụp rõ nét hơn.")
+                        .build();
+            }
+
+            // Lấy kết quả đầu tiên (thường chỉ có 1 card trên 1 ảnh)
+            FptAiIdrResponse.FptAiIdrData data = response.getData().get(0);
+            
+            // Log full response for debugging
+            try {
+                log.info("🔍 FPT AI Raw JSON for Type {}: {}", data.getType(), objectMapper.writeValueAsString(data));
+            } catch (Exception ignored) {}
+
+            FptAiIdrResponse.FptAiIdrInfo info = data.getInfo();
+            
+            // Extract fields flexibly from either 'info' or flat 'data'
+            String finalName = info != null && info.getName() != null ? info.getName() : data.getName();
+            String finalId = info != null && info.getId() != null ? info.getId() : data.getId();
+            String finalDob = info != null && info.getDob() != null ? info.getDob() : data.getDob();
+
+            // Check if it's the back side - we don't expect a name/dob here
+            boolean isBackSide = data.getType() != null && data.getType().toLowerCase().contains("back");
+
+            if (finalName == null && finalId == null && !isBackSide) {
+                return OnboardingAiVerificationResult.builder()
+                        .isValid(false)
+                        .feedbackReason("Không thể trích xuất thông tin từ giấy tờ. Hình ảnh có thể bị mờ hoặc bị cắt góc.")
+                        .build();
+            }
+
+            // Kiểm tra tính hợp lệ & giả mạo (Anti-spoofing)
+            boolean isValid = true;
+            StringBuilder feedback = new StringBuilder();
+
+            // 1. Kiểm tra cảnh báo (warning) từ FPT AI
+            String warning = data.getWarning();
+            if (warning != null && !warning.isBlank()) {
+                log.warn("⚠️ FPT AI Warning detected: {}", warning);
+                isValid = false;
+                feedback.append("Cảnh báo AI: ").append(translateWarning(warning)).append(". ");
+            }
+
+            // 2. Kiểm tra độ tin cậy (Probability) - Ngưỡng đề xuất 0.6
+            // Determine which fields to check based on front/back
+            if (!isBackSide) {
+                Double nameProb = data.getProbability() != null ? data.getProbability().get("name") : data.getNameProb();
+                Double idProb = data.getProbability() != null ? data.getProbability().get("id") : data.getIdProb();
+                
+                if ((nameProb != null && nameProb < 0.6) || (idProb != null && idProb < 0.6)) {
+                    log.warn("⚠️ Low confidence detected (Front): name={}, id={}", nameProb, idProb);
+                    isValid = false;
+                    feedback.append("Ảnh mờ hoặc bị chói sáng, không thể xác minh rõ họ tên và số giấy tờ. ");
+                }
+            } else {
+                Double issueProb = null;
+                if (data.getProbability() != null) {
+                    issueProb = data.getProbability().get("issue_date") != null 
+                        ? data.getProbability().get("issue_date") 
+                        : data.getProbability().get("issueDate");
+                }
+                
+                if (issueProb != null && issueProb < 0.6) {
+                    log.warn("⚠️ Low confidence detected (Back): issue_date={}", issueProb);
+                    isValid = false;
+                    feedback.append("Ảnh mặt sau mờ, không thể đọc ngày cấp rõ ràng. ");
+                }
+            }
+
+            if (isValid) {
+                feedback.append(isBackSide ? "Mặt sau CCCD hợp lệ." : "Hồ sơ CCCD hợp lệ và đã được xác thực qua FPT AI.");
+            }
+
+            return OnboardingAiVerificationResult.builder()
+                    .isValid(isValid)
+                    .feedbackReason(feedback.toString().trim())
+                    .extractedName(finalName)
+                    .extractedIdNumber(finalId)
+                    .extractedDob(finalDob)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("❌ Failed to verify ID card via FPT AI: {}", e.getMessage(), e);
+            return OnboardingAiVerificationResult.builder()
+                    .isValid(false)
+                    .feedbackReason("Lỗi kết nối hoặc xử lý API FPT AI: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    private String translateWarning(String warning) {
+        if (warning == null) return "";
+        return switch (warning.toLowerCase()) {
+            case "screen_shot" -> "Phát hiện ảnh chụp màn hình (không chấp nhận)";
+            case "photocopy" -> "Phát hiện ảnh photocopy (vui lòng dùng ảnh gốc)";
+            case "fake" -> "Phát hiện dấu hiệu giả mạo căn cước";
+            case "edited" -> "Ảnh có dấu hiệu chỉnh sửa kỹ thuật số";
+            default -> "Hình ảnh không đạt chuẩn xác minh (lỗi: " + warning + ")";
+        };
+    }
+
+    // ==============================================================================================
+    // PRIVATE HELPER METHODS
+    // ==============================================================================================
 
     private String getMimeType(String fileName) {
         if (fileName == null) return "application/pdf";
@@ -162,11 +333,10 @@ public class AiServiceImpl implements AiService {
         try {
             CvFile cvFile = application.getCvFile();
             if (cvFile != null) {
-                // Upload file lên Gemini và extract text content
+                // Extract text content locally
                 Path filePath = fileStorageService.getFilePath(cvFile.getFilePath());
                 String mimeType = getMimeType(cvFile.getFileName());
-                return geminiClient.chatWithFile(filePath, mimeType,
-                        "Extract all text content from this CV/Resume document. Return only the text content, no formatting.");
+                return cvTextExtractor.extractText(filePath, mimeType);
             }
         } catch (Exception e) {
             log.warn("Could not extract CV content, using fallback: {}", e.getMessage());
@@ -206,7 +376,6 @@ public class AiServiceImpl implements AiService {
             } else {
                 genderStr = null;
             }
-
             // Parse skills array
             List<String> skills = jsonArrayToList(node, "skills");
 
@@ -279,6 +448,7 @@ public class AiServiceImpl implements AiService {
 
             List<String> strengths = jsonArrayToList(node, "strengths");
             List<String> gaps = jsonArrayToList(node, "gaps");
+            List<String> recommendations = jsonArrayToList(node, "recommendations");
             String explanation = getTextOrEmpty(node, "explanation");
 
             return ApplicationAiResult.builder()
@@ -289,6 +459,7 @@ public class AiServiceImpl implements AiService {
                     .summary(explanation)
                     .strengths(strengths)
                     .gaps(gaps)
+                    .recommendations(recommendations)
                     .build();
         } catch (Exception e) {
             log.error("❌ Failed to parse Match AI response: {}", e.getMessage());
@@ -301,6 +472,7 @@ public class AiServiceImpl implements AiService {
                     .summary("AI analysis could not be completed. Please try again.")
                     .strengths(List.of())
                     .gaps(List.of("AI parsing failed"))
+                    .recommendations(List.of())
                     .build();
         }
     }

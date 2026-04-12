@@ -1,8 +1,6 @@
 package com.smarthire.backend.features.auth.controller;
 
 import com.smarthire.backend.features.auth.dto.*;
-import com.smarthire.backend.features.auth.entity.User;
-import com.smarthire.backend.features.auth.repository.UserRepository;
 import com.smarthire.backend.features.auth.service.AuthService;
 import com.smarthire.backend.shared.constants.ApiPaths;
 import com.smarthire.backend.shared.dto.ApiResponse;
@@ -10,15 +8,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @RestController
@@ -28,9 +26,8 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
-    private final UserRepository userRepository;
 
-    @Value("${app.frontend.url}")
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
     @PostMapping("/register")
@@ -46,6 +43,23 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Login successful", response));
+    }
+
+    @GetMapping("/github/callback")
+    @Operation(summary = "GitHub OAuth Callback", description = "Handles redirect from GitHub and redirects to frontend")
+    public ResponseEntity<Void> githubCallback(@org.springframework.web.bind.annotation.RequestParam("code") String code) {
+        AuthResponse response = authService.githubLogin(code);
+        
+        // Return 302 Redirect to Frontend's callback handler to set the token inside the browser
+        String redirectUrl = frontendUrl + "/oauth/github-success" 
+                + "?access_token=" + response.getAccessToken() 
+                + "&refresh_token=" + response.getRefreshToken()
+                + "&role=" + response.getRole()
+                + "&onboarded=" + response.getIsOnboarded();
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(java.net.URI.create(redirectUrl))
+                .build();
     }
 
     @PostMapping("/refresh-token")
@@ -71,14 +85,6 @@ public class AuthController {
                 "If an account with that email exists, a password reset link has been sent.", null));
     }
 
-    @GetMapping("/verify-reset-token")
-    @Operation(summary = "Verify reset token", description = "Checks if a reset password token is valid, used, or expired")
-    public ResponseEntity<ApiResponse<Void>> verifyResetToken(
-            @org.springframework.web.bind.annotation.RequestParam String token) {
-        authService.verifyResetToken(token);
-        return ResponseEntity.ok(ApiResponse.success("Reset token is valid.", null));
-    }
-
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
@@ -94,47 +100,8 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "Get current user", description = "Returns full profile of the authenticated user")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> me(Authentication authentication) {
-        User user = userRepository.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        Map<String, Object> userData = Map.of(
-                "id", user.getId(),
-                "email", user.getEmail(),
-                "fullName", user.getFullName() != null ? user.getFullName() : "",
-                "phone", user.getPhone() != null ? user.getPhone() : "",
-                "role", user.getRole().name(),
-                "avatarUrl", user.getAvatarUrl() != null ? user.getAvatarUrl() : "",
-                "isActive", user.getIsActive(),
-                "createdAt", user.getCreatedAt().toString(),
-                "updatedAt", user.getUpdatedAt().toString(),
-                "isOnboarded", user.getIsOnboarded() != null ? user.getIsOnboarded() : false
-        );
-        return ResponseEntity.ok(ApiResponse.success("Current user", userData));
-    }
-
-    /**
-     * GitHub OAuth callback
-     * GitHub redirects here after user authorization:
-     *   GET /api/auth/github/callback?code=xxx
-     * We exchange the code for JWT tokens and redirect the browser
-     * to the Next.js frontend callback page.
-     */
-    @GetMapping("/github/callback")
-    @Operation(summary = "GitHub OAuth callback", description = "Handles GitHub redirect, issues JWT, redirects to frontend")
-    public RedirectView githubCallback(@RequestParam String code) {
-        try {
-            AuthResponse auth = authService.githubLogin(code);
-            String redirect = frontendUrl + "/auth/callback"
-                    + "?accessToken=" + URLEncoder.encode(auth.getAccessToken(), StandardCharsets.UTF_8)
-                    + "&refreshToken=" + URLEncoder.encode(auth.getRefreshToken(), StandardCharsets.UTF_8)
-                    + "&role=" + URLEncoder.encode(auth.getRole(), StandardCharsets.UTF_8)
-                    + "&isOnboarded=" + (auth.getIsOnboarded() != null ? auth.getIsOnboarded() : false);
-            return new RedirectView(redirect);
-        } catch (Exception e) {
-            String msg = e.getMessage() != null ? e.getMessage() : "GitHub login failed";
-            return new RedirectView(frontendUrl + "/login?error=github_failed&message="
-                    + URLEncoder.encode(msg, StandardCharsets.UTF_8));
-        }
+    @Operation(summary = "Get current user", description = "Returns basic info of the authenticated user")
+    public ResponseEntity<ApiResponse<Map<String, String>>> me(Authentication authentication) {
+        return ResponseEntity.ok(ApiResponse.success("Current user", Map.of("email", authentication.getName())));
     }
 }

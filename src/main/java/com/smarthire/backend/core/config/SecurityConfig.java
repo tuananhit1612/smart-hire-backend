@@ -5,6 +5,7 @@ import com.smarthire.backend.core.security.CustomAuthenticationEntryPoint;
 import com.smarthire.backend.core.security.JwtAuthenticationFilter;
 import com.smarthire.backend.shared.constants.ApiPaths;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -37,6 +38,9 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -48,17 +52,19 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
                         // ── Public endpoints ──
-                        .requestMatchers("/api/health").permitAll()
+                        .requestMatchers("/api/v1/health", "/api/health").permitAll()
                         .requestMatchers(
                                 ApiPaths.AUTH + "/register",
                                 ApiPaths.AUTH + "/login",
                                 ApiPaths.AUTH + "/refresh-token",
                                 ApiPaths.AUTH + "/forgot-password",
                                 ApiPaths.AUTH + "/reset-password",
-                                ApiPaths.AUTH + "/verify-reset-token",
-                                ApiPaths.AUTH + "/test-token",
-                                ApiPaths.AUTH + "/github/callback")
+                                ApiPaths.AUTH + "/github/callback",
+                                "/api/auth/github/callback")
                         .permitAll()
+
+                        // ── Public browsable content (no login required) ──
+                        .requestMatchers(HttpMethod.GET, ApiPaths.PUBLIC + "/**").permitAll()
 
                         // ── Swagger / OpenAPI ──
                         .requestMatchers(
@@ -73,9 +79,7 @@ public class SecurityConfig {
                         // ── WebSocket STOMP endpoint (auth at STOMP layer) ──
                         .requestMatchers("/ws/**").permitAll()
 
-                        // ── Public job listing (browsable without login) ──
-                        .requestMatchers(HttpMethod.GET, ApiPaths.JOBS + "/public", ApiPaths.JOBS + "/public/**")
-                        .permitAll()
+                        // ── Public company listing ──
                         .requestMatchers(HttpMethod.GET, ApiPaths.COMPANIES, ApiPaths.COMPANIES + "/**").permitAll()
 
                         // ── Admin-only endpoints ──
@@ -84,12 +88,12 @@ public class SecurityConfig {
                         // ── HR + Admin endpoints ──
                         .requestMatchers(HttpMethod.POST, ApiPaths.JOBS).hasAnyRole("HR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, ApiPaths.JOBS + "/**").hasAnyRole("HR", "ADMIN")
                         .requestMatchers(ApiPaths.COMPANIES + "/**").hasAnyRole("HR", "ADMIN")
+                        // ── Dashboards endpoints ──
                         .requestMatchers(ApiPaths.DASHBOARD + "/candidate/**").hasAnyRole("CANDIDATE", "ADMIN")
-                        .requestMatchers(ApiPaths.DASHBOARD + "/**").hasAnyRole("HR", "ADMIN")
-                        .requestMatchers("/api/employer/**").hasAnyRole("HR", "ADMIN")
+                        .requestMatchers(ApiPaths.DASHBOARD + "/hr/**").hasAnyRole("HR", "ADMIN")
+                        .requestMatchers(ApiPaths.DASHBOARD + "/**").hasAnyRole("HR", "ADMIN", "CANDIDATE")
 
                         // ── Everything else requires authentication ──
                         .anyRequest().authenticated())
@@ -103,7 +107,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173", frontendUrl));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

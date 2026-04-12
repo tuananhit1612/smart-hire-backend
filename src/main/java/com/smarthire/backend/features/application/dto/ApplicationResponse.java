@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -31,4 +32,6 @@ public class ApplicationResponse {
     
     private ApplicationStage stage;
     private LocalDateTime appliedAt;
+    private LocalDateTime updatedAt;
+    private List<StageHistoryDto> stageHistory;
 }

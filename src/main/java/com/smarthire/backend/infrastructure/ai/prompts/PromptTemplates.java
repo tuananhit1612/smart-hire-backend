@@ -14,7 +14,12 @@ public final class PromptTemplates {
      * Output: JSON chứa personal info.
      */
     public static final String CV_PARSE_PROMPT = """
-            Analyze this CV/Resume document and extract structured information.
+            Analyze this CV/Resume text and extract structured information.
+            
+            === CV TEXT ===
+            %s
+            
+            === INSTRUCTIONS ===
             
             Return ONLY a valid JSON object with this EXACT structure (no markdown, no code blocks, just raw JSON):
             {
@@ -138,6 +143,9 @@ public final class PromptTemplates {
             STRICTLY follow these governance rules (provided as JSON) when evaluating:
             %s
             
+            === CV TEXT ===
+            %s
+            
             SCORING THRESHOLD (used to decide status for each item):
             - 0-49 (WEAK/CRITICAL): Needs strong revision, may need complete rewrite
             - 50-69 (IMPROVE): Selective improvement needed, only rewrite if truly necessary
@@ -243,6 +251,9 @@ public final class PromptTemplates {
             Below is the review result with section-by-section analysis.
             
             PREVIOUS REVIEW RESULT:
+            %s
+            
+            === CV TEXT ===
             %s
             
             YOUR TASK:
@@ -419,5 +430,104 @@ public final class PromptTemplates {
             - If the candidate exceeds requirements, score accordingly (90+)
             - All text fields must be in Vietnamese
             - Return ONLY the JSON, no other text
+            """;
+
+    /**
+     * M3.4 Generate Interview Questions — Tạo câu hỏi phỏng vấn dựa trên CV và JD.
+     */
+    public static final String GENERATE_INTERVIEW_QUESTIONS_PROMPT = """
+            You are an expert HR Interviewer. Based on the candidate's CV and the Job Description,
+            generate a set of personalized interview questions to assess their technical skills,
+            experience gaps, and overall fit.
+            
+            === CANDIDATE CV CONTENT ===
+            %s
+            
+            === JOB DESCRIPTION ===
+            Title: %s
+            Description: %s
+            Requirements: %s
+            Required Skills: %s
+            Job Level: %s
+            
+            Return ONLY a valid JSON object with this EXACT structure (no markdown, no code blocks):
+            {
+                "questions": [
+                    {
+                        "category": "TECHNICAL | BEHAVIORAL | EXPERIENCE | SCENARIO",
+                        "question": "The interview question in Vietnamese",
+                        "intent": "What this question aims to evaluate (in Vietnamese)",
+                        "expectedPoints": ["point 1 to listen for", "point 2"]
+                    }
+                ],
+                "summary": "Brief explanation of the interview strategy in Vietnamese"
+            }
+            
+            CRITICAL RULES:
+            - Generate exactly 5-8 highly relevant questions.
+            - Focus on the intersection of the candidate's past experience and the JD's requirements.
+            - ALL textual content (question, intent, expected points, summary) MUST be in Vietnamese.
+            - Return ONLY the JSON, absolutely no conversational text.
+            """;
+
+    /**
+     * M3.5 Virtual Interview Evaluation — Đánh giá câu trả lời phỏng vấn của ứng viên.
+     */
+    public static final String VIRTUAL_INTERVIEW_EVALUATION_PROMPT = """
+            You are an expert technical interviewer evaluating a candidate's answer.
+            
+            === INTERVIEW CONTEXT ===
+            Job Title: %s
+            Question Asked: %s
+            Candidate's Answer: %s
+            
+            Return ONLY a valid JSON object with this EXACT structure (no markdown, no code blocks):
+            {
+                "score": 85,
+                "feedback": "Detailed feedback on the answer in Vietnamese",
+                "strengths": ["string", "string"],
+                "weaknesses": ["string"],
+                "followUpQuestion": "A natural follow-up question in Vietnamese, or null if to move on"
+            }
+            
+            CRITICAL RULES:
+            - score must be an integer from 0 to 100.
+            - Evaluate based on technical accuracy, clarity, and relevance.
+            - ALL textual content (feedback, strengths, weaknesses, followUpQuestion) MUST be in Vietnamese.
+            - Return ONLY the JSON, absolutely no conversational text.
+=======
+            Rules for generating the response:
+            - overallRating must be a number between 0 and 10
+            - Identify 2-5 strengths and 2-5 weaknesses.
+            - Provide 3-8 issues and 3-6 suggestions
+            - 'quote' in issues MUST be exact words from the CV. Do NOT paraphrase it. If the issue is a missing section (e.g., no email), quote can be "N/A" or empty string.
+            - CRITICAL: All textual output in the JSON (description, section, suggestion, strengths, weaknesses, summary) MUST be written in 100% Vietnamese (Tiếng Việt). Exception: The 'quote' field MUST remain in the original language of the CV exactly as written.
+            - Return ONLY the JSON, absolutely no conversational text, no JSON markdown blocks.
+>>>>>>> Stashed changes
+            """;
+
+    /**
+     * ID Verification — Kiểm duyệt và trích xuất thông tin từ ảnh CMND/CCCD.
+     */
+    public static final String ONBOARDING_ID_VERIFY_PROMPT = """
+            You are a strict security and KYC verification expert for Vietnam ID cards (CMND/CCCD).
+            Please analyze the attached image.
+            
+            Return ONLY a valid JSON object with this EXACT structure (no markdown, no code blocks):
+            {
+                "isValid": true,
+                "feedbackReason": "If isValid is false, explain why (e.g. 'Ảnh bị mờ', 'Không phải thẻ CCCD', 'Phát hiện chụp từ màn hình', 'Có chứa nội dung 18+'). If true, leave empty",
+                "extractedName": "Họ và Tên trích xuất từ thẻ (nếu có)",
+                "extractedIdNumber": "Số CCCD/CMND (nếu có)",
+                "extractedDob": "Ngày sinh (nếu có)"
+            }
+            
+            Rules:
+            - Check for inappropriate content (NSFW/Violence). If found, reject immediately (isValid = false).
+            - Check if the document appears to be a legitimate Vietnam ID document.
+            - Check for major signs of forgery or taking a photo of a screen (moiré patterns).
+            - Extract the data accurately inside the extracted fields. 
+            - feedbackReason MUST be in Vietnamese.
+            - Return ONLY the JSON object.
             """;
 }

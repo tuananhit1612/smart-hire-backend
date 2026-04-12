@@ -13,7 +13,10 @@ import com.smarthire.backend.features.application.repository.ApplicationReposito
 import com.smarthire.backend.features.auth.entity.User;
 import com.smarthire.backend.features.auth.repository.UserRepository;
 import com.smarthire.backend.features.candidate.entity.CandidateProfile;
+import com.smarthire.backend.features.onboarding.entity.OnboardingDocument;
+import com.smarthire.backend.features.onboarding.repository.OnboardingDocumentRepository;
 import com.smarthire.backend.infrastructure.ai.service.AiService;
+import com.smarthire.backend.shared.enums.ApplicationStage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -34,6 +37,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     private final UserRepository userRepository;
     private final ApplicationService coreApplicationService;
     private final AiService aiService;
+    private final OnboardingDocumentRepository onboardingDocumentRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -89,6 +93,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
                         .summary("AI analysis is currently unavailable. Please try re-analyzing.")
                         .strengths(List.of())
                         .gaps(List.of())
+                        .recommendations(List.of())
                         .build();
                 app.setAiResult(aiResultRepository.save(fallback));
             }
@@ -101,7 +106,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     @Transactional
     public EmployerApplicationResponse updateStage(Long jobId, Long applicantId, Long employerId, ChangeStageRequest request) {
         Application app = getApplicationAndVerifyEmployer(jobId, applicantId, employerId);
-        coreApplicationService.changeStage(app.getId(), employerId, request);
+        coreApplicationService.changeStage(app.getId(), request);
         try {
             return getApplicantDetail(jobId, applicantId, employerId);
         } catch (Exception e) {
@@ -162,6 +167,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
                     .summary("AI re-analysis failed: " + e.getMessage())
                     .strengths(List.of())
                     .gaps(List.of("AI service error"))
+                    .recommendations(List.of())
                     .build();
             fallback = aiResultRepository.save(fallback);
             app.setAiResult(fallback);
@@ -238,7 +244,23 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
                 .skills(skills)
                 .activities(activities)
                 .notes(notes)
+                .onboardingProgress(calculateOnboardingProgress(app))
                 .build();
+    }
+
+    private String calculateOnboardingProgress(Application app) {
+        if (app.getStage() != ApplicationStage.OFFER && app.getStage() != ApplicationStage.HIRED) {
+            return null;
+        }
+        
+        List<OnboardingDocument> docs = onboardingDocumentRepository.findByApplication_Id(app.getId());
+        // Count all uploaded documents (Verified + Pending) to show activity to HR, but EXCLUDE REJECTED
+        long submitted = docs.stream()
+            .filter(d -> d.getStatus() != com.smarthire.backend.features.onboarding.enums.VerificationStatus.REJECTED)
+            .count();
+        
+        // Return submitted count / total required (Assumed 6)
+        return submitted + "/6";
     }
 
     private AiAnalysisResponse toAiAnalysisResponse(ApplicationAiResult r) {
