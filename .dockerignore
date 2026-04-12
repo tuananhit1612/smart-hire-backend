@@ -1,0 +1,12 @@
+.git
+.gitignore
+target/
+uploads/
+*.md
+.env
+.env.*
+.idea/
+.vscode/
+*.iml
+error_output.txt
+backend_startup*.log

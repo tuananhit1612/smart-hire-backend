@@ -24,6 +24,11 @@ WORKDIR /app
 
 # Create a non-root user for security
 RUN groupadd -r spring && useradd -r -g spring spring
+
+# Create uploads directory (needed by Railway / local) and fix permissions
+RUN mkdir -p /app/uploads
+RUN chown -R spring:spring /app
+
 USER spring:spring
 
 # Extract the JAR built in the previous stage

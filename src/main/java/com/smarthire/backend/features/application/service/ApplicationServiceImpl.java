@@ -10,6 +10,7 @@ import com.smarthire.backend.features.application.dto.StageHistoryDto;
 import com.smarthire.backend.features.application.dto.ApplicationTrackingResponse;
 import com.smarthire.backend.features.application.entity.Application;
 import com.smarthire.backend.features.application.entity.ApplicationStageHistory;
+import com.smarthire.backend.features.application.repository.ApplicationAiResultRepository;
 import com.smarthire.backend.features.application.repository.ApplicationRepository;
 import com.smarthire.backend.features.auth.entity.User;
 import com.smarthire.backend.features.candidate.entity.CandidateProfile;
@@ -21,6 +22,7 @@ import com.smarthire.backend.features.job.repository.JobRepository;
 import com.smarthire.backend.features.notification.dto.CreateNotificationRequest;
 import com.smarthire.backend.features.notification.service.NotificationService;
 import com.smarthire.backend.features.notification.service.RealtimeEventService;
+import com.smarthire.backend.infrastructure.ai.service.AiService;
 import com.smarthire.backend.shared.enums.ApplicationStage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +42,9 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final CvFileRepository cvFileRepository;
     private final NotificationService notificationService;
     private final JobRepository jobRepository;
+    private final AiService aiService;
+    private final ApplicationAiResultRepository aiResultRepository;
+    private final CvFileRepository cvFileRepository;
 
     // ── Apply to a job ──
 
@@ -57,6 +62,11 @@ public class ApplicationServiceImpl implements ApplicationService {
         Job job = jobRepository.findById(request.getJobId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Job not found with id: " + request.getJobId()));
+
+        // 2b. Validate CV File
+        CvFile cvFile = cvFileRepository.findById(request.getCvFileId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "CV not found with id: " + request.getCvFileId()));
 
         // 3. Check duplicate application
         if (applicationRepository.existsByJobIdAndCandidateProfileId(
@@ -79,6 +89,17 @@ public class ApplicationServiceImpl implements ApplicationService {
         Application saved = applicationRepository.save(application);
         log.info("User {} applied to job {} (application {})",
                 currentUser.getEmail(), request.getJobId(), saved.getId());
+
+        // ── Auto-trigger AI CV-JD matching (sync, non-blocking) ──
+        try {
+            com.smarthire.backend.features.application.entity.ApplicationAiResult aiResult = aiService.matchCvWithJob(saved);
+            aiResult = aiResultRepository.save(aiResult);
+            saved.setAiResult(aiResult);
+            log.info("✅ Auto AI CV-JD match completed for application {} — score={}",
+                    saved.getId(), aiResult.getMatchScore());
+        } catch (Exception e) {
+            log.warn("⚠️ Auto AI CV-JD match failed (non-blocking): {}", e.getMessage());
+        }
 
         return toResponse(saved);
     }

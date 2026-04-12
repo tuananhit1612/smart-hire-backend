@@ -93,6 +93,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
                         .summary("AI analysis is currently unavailable. Please try re-analyzing.")
                         .strengths(List.of())
                         .gaps(List.of())
+                        .recommendations(List.of())
                         .build();
                 app.setAiResult(aiResultRepository.save(fallback));
             }
@@ -166,6 +167,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
                     .summary("AI re-analysis failed: " + e.getMessage())
                     .strengths(List.of())
                     .gaps(List.of("AI service error"))
+                    .recommendations(List.of())
                     .build();
             fallback = aiResultRepository.save(fallback);
             app.setAiResult(fallback);
