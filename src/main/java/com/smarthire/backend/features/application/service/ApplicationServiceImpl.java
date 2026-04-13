@@ -44,7 +44,6 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final JobRepository jobRepository;
     private final AiService aiService;
     private final ApplicationAiResultRepository aiResultRepository;
-    private final CvFileRepository cvFileRepository;
 
     // ── Apply to a job ──
 
@@ -73,10 +72,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                 request.getJobId(), profile.getId())) {
             throw new BadRequestException("Bạn đã ứng tuyển vào vị trí này rồi");
         }
-
-        // 4. Validate CvFile exists
-        CvFile cvFile = cvFileRepository.findById(request.getCvFileId())
-                .orElseThrow(() -> new ResourceNotFoundException("CV File not found"));
 
         // 5. Create and save
         Application application = Application.builder()
