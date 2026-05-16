@@ -97,7 +97,7 @@ public class FileStorageService {
     public void deleteFile(String relativePath) {
         if (relativePath == null || relativePath.isBlank()) return;
         try {
-            Path filePath = uploadDir.resolve(relativePath).normalize();
+            Path filePath = resolveUnderUploadDir(relativePath);
             Files.deleteIfExists(filePath);
             log.info("Deleted file: {}", filePath);
         } catch (IOException e) {
@@ -109,7 +109,7 @@ public class FileStorageService {
      * Lấy absolute path từ relative path.
      */
     public Path getFilePath(String relativePath) {
-        return uploadDir.resolve(relativePath).normalize();
+        return resolveUnderUploadDir(relativePath);
     }
 
     private void validateFile(MultipartFile file, List<String> allowedTypes, String fileCategory) {
@@ -131,7 +131,7 @@ public class FileStorageService {
 
     private String storeFile(MultipartFile file, String subDir) {
         try {
-            Path targetDir = uploadDir.resolve(subDir);
+            Path targetDir = resolveUnderUploadDir(subDir);
             Files.createDirectories(targetDir);
 
             String originalFilename = StringUtils.cleanPath(file.getOriginalFilename() != null
@@ -153,5 +153,17 @@ public class FileStorageService {
     private String getExtension(String filename) {
         int dotIndex = filename.lastIndexOf('.');
         return dotIndex > 0 ? filename.substring(dotIndex) : "";
+    }
+
+    private Path resolveUnderUploadDir(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new BadRequestException("File path is required");
+        }
+
+        Path resolved = uploadDir.resolve(relativePath).normalize();
+        if (!resolved.startsWith(uploadDir)) {
+            throw new BadRequestException("Invalid file path");
+        }
+        return resolved;
     }
 }

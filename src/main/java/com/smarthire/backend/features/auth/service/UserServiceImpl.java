@@ -52,7 +52,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
         // Xóa avatar cũ nếu có
-        if (user.getAvatarUrl() != null) {
+        if (user.getAvatarUrl() != null && !user.getAvatarUrl().startsWith("http")) {
             fileStorageService.deleteFile(user.getAvatarUrl());
         }
 

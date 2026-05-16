@@ -131,8 +131,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadRequestException("No account found with this email"));
+        User user = userRepository.findByEmail(request.getEmail()).orElse(null);
+        if (user == null) {
+            log.info("Password reset requested for non-existing email: {}", request.getEmail());
+            return;
+        }
 
         // Hủy tất cả token cũ
         passwordResetTokenRepository.invalidateAllByUserId(user.getId());

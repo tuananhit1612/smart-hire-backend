@@ -13,10 +13,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @RestController
@@ -47,15 +50,18 @@ public class AuthController {
 
     @GetMapping("/github/callback")
     @Operation(summary = "GitHub OAuth Callback", description = "Handles redirect from GitHub and redirects to frontend")
-    public ResponseEntity<Void> githubCallback(@org.springframework.web.bind.annotation.RequestParam("code") String code) {
+    public ResponseEntity<Void> githubCallback(
+            @RequestParam("code") String code,
+            @RequestParam(value = "state", required = false) String state) {
         AuthResponse response = authService.githubLogin(code);
         
-        // Return 302 Redirect to Frontend's callback handler to set the token inside the browser
-        String redirectUrl = frontendUrl + "/oauth/github-success" 
-                + "?access_token=" + response.getAccessToken() 
-                + "&refresh_token=" + response.getRefreshToken()
-                + "&role=" + response.getRole()
-                + "&onboarded=" + response.getIsOnboarded();
+        // Use URL fragment so tokens are not sent back to the frontend server in request logs.
+        String redirectUrl = frontendUrl + "/oauth/github-success"
+                + "#access_token=" + urlEncode(response.getAccessToken())
+                + "&refresh_token=" + urlEncode(response.getRefreshToken())
+                + "&role=" + urlEncode(response.getRole())
+                + "&onboarded=" + response.getIsOnboarded()
+                + (state != null ? "&state=" + urlEncode(state) : "");
 
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(java.net.URI.create(redirectUrl))
@@ -92,6 +98,12 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success("Password reset successfully. Please login with new password.", null));
     }
 
+    @GetMapping("/verify-reset-token")
+    public ResponseEntity<ApiResponse<Void>> verifyResetToken(@RequestParam("token") String token) {
+        authService.verifyResetToken(token);
+        return ResponseEntity.ok(ApiResponse.success("Reset token is valid", null));
+    }
+
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request) {
@@ -103,5 +115,9 @@ public class AuthController {
     @Operation(summary = "Get current user", description = "Returns basic info of the authenticated user")
     public ResponseEntity<ApiResponse<Map<String, String>>> me(Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success("Current user", Map.of("email", authentication.getName())));
+    }
+
+    private String urlEncode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

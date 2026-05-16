@@ -23,6 +23,7 @@ import java.util.Objects;
 
 @RestControllerAdvice
 @Slf4j
+@SuppressWarnings("deprecation")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)

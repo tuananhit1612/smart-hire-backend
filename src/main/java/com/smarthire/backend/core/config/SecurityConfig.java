@@ -26,6 +26,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -40,6 +41,9 @@ public class SecurityConfig {
 
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
+
+    @Value("${app.cors.allowed-origins:http://localhost:3000,http://localhost:5173}")
+    private String allowedOrigins;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -71,10 +75,11 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**")
-                        .permitAll()
+                        .hasRole("ADMIN")
 
                         // ── Static uploads ──
-                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/uploads/cv/**", "/uploads/onboarding_docs/**").denyAll()
+                        .requestMatchers("/uploads/avatars/**", "/uploads/logos/**", "/uploads/covers/**").permitAll()
 
                         // ── WebSocket STOMP endpoint (auth at STOMP layer) ──
                         .requestMatchers("/ws/**").permitAll()
@@ -107,7 +112,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173", frontendUrl));
+        List<String> origins = Arrays.stream((allowedOrigins + "," + frontendUrl).split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .distinct()
+                .toList();
+        config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

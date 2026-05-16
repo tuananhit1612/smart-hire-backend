@@ -1,6 +1,7 @@
 package com.smarthire.backend.features.application.service;
 
 import com.smarthire.backend.core.exception.BadRequestException;
+import com.smarthire.backend.core.exception.ForbiddenException;
 import com.smarthire.backend.core.exception.ResourceNotFoundException;
 import com.smarthire.backend.core.security.SecurityUtils;
 import com.smarthire.backend.features.application.dto.ApplyJobRequest;
@@ -24,6 +25,7 @@ import com.smarthire.backend.features.notification.service.NotificationService;
 import com.smarthire.backend.features.notification.service.RealtimeEventService;
 import com.smarthire.backend.infrastructure.ai.service.AiService;
 import com.smarthire.backend.shared.enums.ApplicationStage;
+import com.smarthire.backend.shared.enums.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,6 +68,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         CvFile cvFile = cvFileRepository.findById(request.getCvFileId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "CV not found with id: " + request.getCvFileId()));
+        if (!cvFile.getCandidateProfile().getId().equals(profile.getId())) {
+            throw new ForbiddenException("You can only apply with your own CV file");
+        }
 
         // 3. Check duplicate application
         if (applicationRepository.existsByJobIdAndCandidateProfileId(
@@ -147,12 +152,17 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional(readOnly = true)
     public ApplicationResponse getApplicationById(Long id) {
         Application app = findOrThrow(id);
+        verifyCanViewApplication(app);
         return toResponse(app);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ApplicationResponse> getApplicationsByJob(Long jobId, String stage) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
+        verifyCanManageJob(job);
+
         List<Application> apps;
         if (stage != null && !stage.isBlank()) {
             ApplicationStage stageEnum = parseStage(stage);
@@ -168,6 +178,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     public ApplicationResponse changeStage(Long applicationId, ChangeStageRequest request) {
         User currentUser = SecurityUtils.getCurrentUser();
         Application app = findOrThrow(applicationId);
+        verifyCanManageApplication(app);
 
         ApplicationStage newStage = parseStage(request.getStage());
         ApplicationStage oldStage = app.getStage();
@@ -216,6 +227,48 @@ public class ApplicationServiceImpl implements ApplicationService {
     private Application findOrThrow(Long id) {
         return applicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
+    }
+
+    private void verifyCanViewApplication(Application app) {
+        User currentUser = SecurityUtils.getCurrentUser();
+        Role role = currentUser.getRole();
+        if (role == Role.ADMIN) {
+            return;
+        }
+
+        if (role == Role.CANDIDATE
+                && app.getCandidateProfile() != null
+                && app.getCandidateProfile().getUser() != null
+                && app.getCandidateProfile().getUser().getId().equals(currentUser.getId())) {
+            return;
+        }
+
+        if (role == Role.HR && ownsJob(app.getJob(), currentUser.getId())) {
+            return;
+        }
+
+        throw new ForbiddenException("You do not have permission to access this application");
+    }
+
+    private void verifyCanManageApplication(Application app) {
+        verifyCanManageJob(app.getJob());
+    }
+
+    private void verifyCanManageJob(Job job) {
+        User currentUser = SecurityUtils.getCurrentUser();
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+        if (currentUser.getRole() == Role.HR && ownsJob(job, currentUser.getId())) {
+            return;
+        }
+        throw new ForbiddenException("You do not have permission to manage this job");
+    }
+
+    private boolean ownsJob(Job job, Long userId) {
+        return job != null
+                && job.getCreatedBy() != null
+                && job.getCreatedBy().getId().equals(userId);
     }
 
     private ApplicationStage parseStage(String stage) {

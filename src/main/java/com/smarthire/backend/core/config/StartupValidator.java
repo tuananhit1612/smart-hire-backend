@@ -31,6 +31,12 @@ public class StartupValidator {
     @Value("${app.frontend.url:http://localhost:3000}")
     private String frontendUrl;
 
+    @Value("${app.jwt.secret:}")
+    private String jwtSecret;
+
+    @Value("${spring.datasource.password:}")
+    private String databasePassword;
+
     public StartupValidator(Environment environment) {
         this.environment = environment;
     }
@@ -40,36 +46,44 @@ public class StartupValidator {
         List<String> activeProfiles = Arrays.asList(environment.getActiveProfiles());
         boolean isProd = activeProfiles.contains("prod") || activeProfiles.contains("production");
 
-        log.info("═══════════════════════════════════════════════════");
-        log.info("  SmartHire Backend — Startup Validation");
+        log.info("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+        log.info("  SmartHire Backend â€” Startup Validation");
         log.info("  Active Profiles: {}", activeProfiles.isEmpty() ? "[default]" : activeProfiles);
         log.info("  Hibernate DDL:   {}", ddlAuto);
         log.info("  Show SQL:        {}", showSql);
         log.info("  Seed Data:       {}", seedEnabled);
         log.info("  Frontend URL:    {}", frontendUrl);
-        log.info("═══════════════════════════════════════════════════");
+        log.info("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
 
         if (isProd) {
-            // ── Critical checks for production ──
+            // â”€â”€ Critical checks for production â”€â”€
             if ("update".equalsIgnoreCase(ddlAuto) || "create".equalsIgnoreCase(ddlAuto)
                     || "create-drop".equalsIgnoreCase(ddlAuto)) {
                 throw new IllegalStateException(
-                        "⛔ UNSAFE: spring.jpa.hibernate.ddl-auto=" + ddlAuto
+                        "â›” UNSAFE: spring.jpa.hibernate.ddl-auto=" + ddlAuto
                                 + " in PRODUCTION profile! Must be 'validate' or 'none'."
                 );
             }
 
             if (seedEnabled) {
-                log.warn("⚠️ WARNING: app.seed.enabled=true in production — seed data will be inserted!");
+                log.warn("âš ï¸ WARNING: app.seed.enabled=true in production â€” seed data will be inserted!");
             }
 
             if (frontendUrl.contains("localhost")) {
-                log.warn("⚠️ WARNING: app.frontend.url contains 'localhost' in production: {}", frontendUrl);
+                log.warn("âš ï¸ WARNING: app.frontend.url contains 'localhost' in production: {}", frontendUrl);
             }
 
-            log.info("✅ Production validation passed.");
+            if (jwtSecret.isBlank() || jwtSecret.length() < 32) {
+                throw new IllegalStateException("UNSAFE: app.jwt.secret must be set to at least 32 characters in production.");
+            }
+
+            if (databasePassword.isBlank() || "root".equals(databasePassword) || "password".equalsIgnoreCase(databasePassword)) {
+                throw new IllegalStateException("UNSAFE: spring.datasource.password must be a strong non-default value in production.");
+            }
+
+            log.info("Production validation passed.");
         } else {
-            log.info("ℹ️  Running in DEV mode — skipping production safety checks.");
+            log.info("â„¹ï¸  Running in DEV mode â€” skipping production safety checks.");
         }
     }
 }

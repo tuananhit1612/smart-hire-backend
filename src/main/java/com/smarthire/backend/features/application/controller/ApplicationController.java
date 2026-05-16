@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class ApplicationController {
     // ── Candidate: apply to a job ──
 
     @PostMapping("/apply")
+    @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<ApiResponse<ApplicationResponse>> apply(
             @Valid @RequestBody ApplyJobRequest request) {
         ApplicationResponse response = applicationService.apply(request);
@@ -35,6 +37,7 @@ public class ApplicationController {
     // ── Candidate: list my applications ──
 
     @GetMapping("/me")
+    @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<ApiResponse<List<ApplicationTrackingResponse>>> getMyApplications() {
         List<ApplicationTrackingResponse> responses = applicationService.getMyApplications();
         return ResponseEntity.ok(ApiResponse.success(responses));
@@ -43,6 +46,7 @@ public class ApplicationController {
     // ── Candidate: withdraw an application ──
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<Void> withdrawApplication(@PathVariable Long id) {
         applicationService.withdrawApplication(id);
         return ResponseEntity.noContent().build();
@@ -51,12 +55,14 @@ public class ApplicationController {
     // ── Existing endpoints ──
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ApplicationResponse>> getApplicationById(@PathVariable Long id) {
         ApplicationResponse response = applicationService.getApplicationById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/job/{jobId}")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getApplicationsByJob(
             @PathVariable Long jobId,
             @RequestParam(required = false) String stage) {
@@ -65,6 +71,7 @@ public class ApplicationController {
     }
 
     @PatchMapping("/{id}/stage")
+    @PreAuthorize("hasAnyRole('HR', 'ADMIN')")
     public ResponseEntity<ApiResponse<ApplicationResponse>> changeStage(
             @PathVariable Long id,
             @Valid @RequestBody ChangeStageRequest request) {
