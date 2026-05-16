@@ -12,7 +12,7 @@ The robust, secure, and highly scalable backend engine underlying the **SmartHir
 | :--- | :--- | :--- |
 | **Framework** | Java 17, Spring Boot 3.x | Spring Web, Spring Validation |
 | **Security** | Spring Security 6 | JWT (io.jsonwebtoken), OAuth2 Client |
-| **Database** | PostgreSQL 14+ | Spring Data JPA, Hibernate, HikariCP |
+| **Database** | MySQL 8.0+ | Spring Data JPA, Hibernate, HikariCP |
 | **Integrations** | External APIs | Third-party AI parsing/Email SMTP |
 | **Testing** | JUnit 5, Mockito | Spring Boot Test |
 | **DevOps** | Docker, Docker Compose | Multi-stage Temurin JRE builds |
@@ -47,7 +47,7 @@ graph TD
         F[Repositories layer]
     end
 
-    F --> J[(PostgreSQL Database)]
+    F --> J[(MySQL Database)]
 
     classDef auth fill:#f9f,stroke:#333,stroke-width:2px,color:#fff;
     class C,B auth;
@@ -129,17 +129,17 @@ erDiagram
 ### Prerequisites
 - **Java JDK 17**
 - **Maven 3.8+**
-- **PostgreSQL Server 14+**
+- **MySQL Server 8.0+**
 - **Docker & Docker Compose** (Optional but recommended)
 
 ### 1. Unified Docker Deployment
-We provide a robust `docker-compose.yml` to spin up both the Postgres database and the Backend API instantly.
+We provide a robust `docker-compose.yml` to spin up both the MySQL database and the Backend API instantly.
 
 ```bash
 git clone https://github.com/khoazandev/smart-hire-backend.git
 cd smart-hire-backend
 
-# Builds the app via Multi-Stage Dockerfile and starts PostgreSQL
+# Builds the app via Multi-Stage Dockerfile and starts MySQL
 docker-compose up -d --build
 ```
 *The API will be available at `http://localhost:8080/api/v1`*
@@ -147,10 +147,12 @@ docker-compose up -d --build
 ### 2. Manual Local Development
 ```bash
 # Provide environment variables in your terminal or IntelliJ Run Config
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/smarthire
-export SPRING_DATASOURCE_USERNAME=postgres
-export SPRING_DATASOURCE_PASSWORD=your_password
-export APP_JWT_SECRET=YOUR_256_BIT_HEX_SECRET
+export DB_HOST=127.0.0.1
+export DB_PORT=3306
+export DB_NAME=smart_hire
+export DB_USERNAME=root
+export DB_PASSWORD=your_password
+export JWT_SECRET=your_256_bit_secret
 
 # Package and Run
 ./mvnw clean compile spring-boot:run
@@ -164,15 +166,18 @@ Create an `application-prod.properties` or set these in the Docker container:
 
 | Variable | Description |
 | :--- | :--- |
-| `SPRING_DATASOURCE_URL` | PostgreSQL JDBC connection string |
-| `SPRING_DATASOURCE_USERNAME`| Database user |
-| `SPRING_DATASOURCE_PASSWORD`| Database password |
-| `APP_JWT_SECRET` | 256-bit Hex secret for JWT signing |
+| `DB_HOST` | MySQL host |
+| `DB_PORT` | MySQL port |
+| `DB_NAME` | MySQL database name |
+| `DB_USERNAME` | Database user |
+| `DB_PASSWORD` | Database password |
+| `JWT_SECRET` | 256-bit secret for JWT signing |
 | `APP_JWT_EXPIRATION` | Access token lifespan (ms) |
 | `APP_JWT_REFRESH_EXPIRATION`| Refresh token lifespan (ms) |
 | `APP_OAUTH2_GITHUB_CLIENT_ID`| GitHub OAuth App Client ID |
 | `APP_OAUTH2_GITHUB_CLIENT_SECRET`| GitHub OAuth App Secret |
-| `APP_FRONTEND_URL` | Application client URL (Default: `http://localhost:3000`) |
+| `FRONTEND_URL` | Application client URL (Default: `http://localhost:3000`) |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed browser origins |
 
 ---
 <div align="center">
