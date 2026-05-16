@@ -1,12 +1,18 @@
 package com.smarthire.backend.features.application.service;
 
+import com.smarthire.backend.core.exception.ForbiddenException;
 import com.smarthire.backend.core.exception.ResourceNotFoundException;
+import com.smarthire.backend.core.security.SecurityUtils;
 import com.smarthire.backend.features.application.dto.CvJdMatchResponse;
 import com.smarthire.backend.features.application.entity.Application;
 import com.smarthire.backend.features.application.entity.ApplicationAiResult;
 import com.smarthire.backend.features.application.repository.ApplicationAiResultRepository;
 import com.smarthire.backend.features.application.repository.ApplicationRepository;
+import com.smarthire.backend.features.auth.entity.User;
+import com.smarthire.backend.features.job.entity.Job;
+import com.smarthire.backend.features.job.repository.JobRepository;
 import com.smarthire.backend.infrastructure.ai.service.AiService;
+import com.smarthire.backend.shared.enums.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +32,7 @@ public class CvJdMatchServiceImpl implements CvJdMatchService {
     private final ApplicationRepository applicationRepository;
     private final ApplicationAiResultRepository aiResultRepository;
     private final AiService aiService;
+    private final JobRepository jobRepository;
 
     @Override
     @Transactional
@@ -33,6 +40,7 @@ public class CvJdMatchServiceImpl implements CvJdMatchService {
         Application application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Application not found with id: " + applicationId));
+        verifyCanManageJob(application.getJob());
 
         // Nếu đã có result và không force → trả về result cũ
         if (!forceReAnalyze && application.getAiResult() != null) {
@@ -82,6 +90,7 @@ public class CvJdMatchServiceImpl implements CvJdMatchService {
         Application application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Application not found with id: " + applicationId));
+        verifyCanManageJob(application.getJob());
 
         ApplicationAiResult aiResult = aiResultRepository.findByApplicationId(applicationId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -93,6 +102,10 @@ public class CvJdMatchServiceImpl implements CvJdMatchService {
     @Override
     @Transactional(readOnly = true)
     public List<CvJdMatchResponse> getMatchResultsByJob(Long jobId) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job", jobId));
+        verifyCanManageJob(job);
+
         List<ApplicationAiResult> results = aiResultRepository.findByApplicationJobId(jobId);
         return results.stream()
                 .map(r -> toResponse(r, r.getApplication()))
@@ -134,5 +147,21 @@ public class CvJdMatchServiceImpl implements CvJdMatchService {
                 .explanation(result.getSummary())
                 .analyzedAt(result.getAnalyzedAt())
                 .build();
+    }
+
+    private void verifyCanManageJob(Job job) {
+        User currentUser = SecurityUtils.getCurrentUser();
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+
+        if (currentUser.getRole() == Role.HR
+                && job != null
+                && job.getCreatedBy() != null
+                && job.getCreatedBy().getId().equals(currentUser.getId())) {
+            return;
+        }
+
+        throw new ForbiddenException("You do not have permission to access this AI analysis");
     }
 }

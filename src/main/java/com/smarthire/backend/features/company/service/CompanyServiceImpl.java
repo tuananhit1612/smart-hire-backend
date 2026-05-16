@@ -140,7 +140,7 @@ public class CompanyServiceImpl implements CompanyService {
         checkOwnership(company);
 
         // Xóa logo cũ nếu có
-        if (company.getLogoUrl() != null && !company.getLogoUrl().isBlank()) {
+        if (company.getLogoUrl() != null && !company.getLogoUrl().isBlank() && !company.getLogoUrl().startsWith("http")) {
             fileStorageService.deleteFile(company.getLogoUrl());
         }
 

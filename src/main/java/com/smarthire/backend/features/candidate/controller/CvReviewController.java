@@ -6,6 +6,7 @@ import com.smarthire.backend.shared.constants.ApiPaths;
 import com.smarthire.backend.shared.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -14,6 +15,7 @@ import java.util.Map;
 @RestController
 @RequestMapping(ApiPaths.AI + "/cv-review")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('CANDIDATE', 'ADMIN')")
 public class CvReviewController {
 
     private final CvReviewService cvReviewService;

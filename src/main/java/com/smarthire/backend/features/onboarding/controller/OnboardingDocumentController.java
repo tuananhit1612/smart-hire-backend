@@ -34,7 +34,7 @@ public class OnboardingDocumentController {
     private final OnboardingDocumentService onboardingDocumentService;
 
     @PostMapping(value = "/application/{applicationId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('CANDIDATE', 'HR', 'ADMIN')")
+    @PreAuthorize("hasRole('CANDIDATE')")
     @Operation(summary = "Tải lên hồ sơ Onboarding cho 1 đơn ứng tuyển")
     public ResponseEntity<ApiResponse<OnboardingDocumentResponse>> uploadDocument(
             @PathVariable Long applicationId,
@@ -42,7 +42,12 @@ public class OnboardingDocumentController {
             @RequestParam("documentType") DocumentType documentType,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
 
-        OnboardingDocumentResponse response = onboardingDocumentService.uploadDocument(applicationId, currentUser.getUser().getId(), file, documentType);
+        OnboardingDocumentResponse response = onboardingDocumentService.uploadDocument(
+                applicationId,
+                currentUser.getUser().getId(),
+                currentUser.getUser().getRole(),
+                file,
+                documentType);
         return ResponseEntity.ok(ApiResponse.success("Tải lên hồ sơ thành công", response));
     }
 
@@ -53,7 +58,10 @@ public class OnboardingDocumentController {
             @PathVariable Long applicationId,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
 
-        List<OnboardingDocumentResponse> documents = onboardingDocumentService.getDocumentsByApplication(applicationId, currentUser.getUser().getId());
+        List<OnboardingDocumentResponse> documents = onboardingDocumentService.getDocumentsByApplication(
+                applicationId,
+                currentUser.getUser().getId(),
+                currentUser.getUser().getRole());
         return ResponseEntity.ok(ApiResponse.success(documents));
     }
 
@@ -64,7 +72,10 @@ public class OnboardingDocumentController {
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails currentUser) throws IOException {
 
-        Resource resource = onboardingDocumentService.downloadDocument(id, currentUser.getUser().getId());
+        Resource resource = onboardingDocumentService.downloadDocument(
+                id,
+                currentUser.getUser().getId(),
+                currentUser.getUser().getRole());
         
         String contentType = Files.probeContentType(resource.getFile().toPath());
         if (contentType == null) {
@@ -86,7 +97,12 @@ public class OnboardingDocumentController {
             @RequestParam(required = false) String comment,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
 
-        OnboardingDocumentResponse response = onboardingDocumentService.updateDocumentStatus(id, currentUser.getUser().getId(), status, comment);
+        OnboardingDocumentResponse response = onboardingDocumentService.updateDocumentStatus(
+                id,
+                currentUser.getUser().getId(),
+                currentUser.getUser().getRole(),
+                status,
+                comment);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái thành công", response));
     }
 }

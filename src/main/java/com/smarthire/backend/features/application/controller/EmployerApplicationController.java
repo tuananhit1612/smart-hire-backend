@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping(ApiPaths.BASE + "/employer/jobs")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('HR', 'ADMIN')")
 @Tag(name = "Employer Applications", description = "APIs for Employer to manage and view applicants with AI Analysis")
 public class EmployerApplicationController {
 

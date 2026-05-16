@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.List;
 @RestController
 @RequestMapping(ApiPaths.AI + "/cv-jd-match")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('HR', 'ADMIN')")
 @Tag(name = "CV-JD Matching", description = "AI-powered CV vs Job Description matching & scoring APIs")
 public class CvJdMatchController {
 

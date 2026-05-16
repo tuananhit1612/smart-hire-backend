@@ -15,6 +15,7 @@ import java.util.Map;
 /**
  * Loads environment variables from .env file located in the project root
  */
+@SuppressWarnings({"deprecation", "removal"})
 public class EnvConfig implements EnvironmentPostProcessor {
 
     @Override

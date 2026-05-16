@@ -11,8 +11,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "companies")
 @Getter
@@ -69,14 +67,17 @@ public class Company {
     @ElementCollection
     @CollectionTable(name = "company_tech_stack", joinColumns = @JoinColumn(name = "company_id"))
     @Column(name = "technology")
+    @Builder.Default
     private List<String> techStack = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "company_benefits", joinColumns = @JoinColumn(name = "company_id"))
+    @Builder.Default
     private List<CompanyBenefit> benefits = new ArrayList<>();
 
     @ElementCollection
     @CollectionTable(name = "company_social_links", joinColumns = @JoinColumn(name = "company_id"))
+    @Builder.Default
     private List<CompanySocialLink> socialLinks = new ArrayList<>();
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -52,12 +52,15 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                         log.info("WebSocket STOMP connected: {} (userId={})", email, userId);
                     } else {
                         log.warn("WebSocket STOMP connect with invalid/expired token");
+                        return null;
                     }
                 } catch (Exception e) {
                     log.error("WebSocket authentication error: {}", e.getMessage());
+                    return null;
                 }
             } else {
                 log.warn("WebSocket STOMP connect without Authorization header");
+                return null;
             }
         }
 

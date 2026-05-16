@@ -1,7 +1,9 @@
 package com.smarthire.backend.features.application.service;
 
 import com.smarthire.backend.core.exception.BadRequestException;
+import com.smarthire.backend.core.exception.ForbiddenException;
 import com.smarthire.backend.core.exception.ResourceNotFoundException;
+import com.smarthire.backend.core.security.SecurityUtils;
 import com.smarthire.backend.features.application.dto.ChangeStageRequest;
 import com.smarthire.backend.features.application.dto.employer.*;
 import com.smarthire.backend.features.application.entity.Application;
@@ -13,10 +15,13 @@ import com.smarthire.backend.features.application.repository.ApplicationReposito
 import com.smarthire.backend.features.auth.entity.User;
 import com.smarthire.backend.features.auth.repository.UserRepository;
 import com.smarthire.backend.features.candidate.entity.CandidateProfile;
+import com.smarthire.backend.features.job.entity.Job;
+import com.smarthire.backend.features.job.repository.JobRepository;
 import com.smarthire.backend.features.onboarding.entity.OnboardingDocument;
 import com.smarthire.backend.features.onboarding.repository.OnboardingDocumentRepository;
 import com.smarthire.backend.infrastructure.ai.service.AiService;
 import com.smarthire.backend.shared.enums.ApplicationStage;
+import com.smarthire.backend.shared.enums.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -35,6 +40,7 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     private final ApplicationAiResultRepository aiResultRepository;
     private final ApplicationNoteRepository noteRepository;
     private final UserRepository userRepository;
+    private final JobRepository jobRepository;
     private final ApplicationService coreApplicationService;
     private final AiService aiService;
     private final OnboardingDocumentRepository onboardingDocumentRepository;
@@ -42,7 +48,10 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
     @Override
     @Transactional(readOnly = true)
     public ApplicantListResponse getApplicantsByJob(Long jobId, Long employerId, String search, String sortBy, Pageable pageable) {
-        // Simplified query for testing - in production should verify employerId owns jobId
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job", jobId));
+        verifyJobOwnership(job, employerId);
+
         Page<Application> applications = applicationRepository.findByJobId(jobId, pageable);
         
         List<EmployerApplicationResponse> dtoList = applications.stream()
@@ -182,9 +191,19 @@ public class EmployerApplicationServiceImpl implements EmployerApplicationServic
         if (!app.getJob().getId().equals(jobId)) {
             throw new BadRequestException("Application does not belong to this job");
         }
-        
-        // TODO: Verify employerId actually owns this job's company
+
+        verifyJobOwnership(app.getJob(), employerId);
         return app;
+    }
+
+    private void verifyJobOwnership(Job job, Long employerId) {
+        if (SecurityUtils.getCurrentUserRole() == Role.ADMIN) {
+            return;
+        }
+
+        if (job == null || job.getCreatedBy() == null || !job.getCreatedBy().getId().equals(employerId)) {
+            throw new ForbiddenException("You do not have permission to manage applicants for this job");
+        }
     }
 
     private EmployerApplicationResponse toEmployerResponse(Application app) {

@@ -14,9 +14,8 @@ RUN ./mvnw dependency:go-offline -B
 
 # Copy the rest of the source and build
 COPY src ./src
-ARG PROFILE=prod
 # Skip tests in container build (assuming CI runs them)
-RUN ./mvnw package -DskipTests -P${PROFILE}
+RUN ./mvnw package -DskipTests
 
 # Stage 2: Minimal Runtime
 FROM eclipse-temurin:17-jre-jammy
