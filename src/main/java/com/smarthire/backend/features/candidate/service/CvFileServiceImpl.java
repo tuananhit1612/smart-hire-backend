@@ -10,6 +10,7 @@ import com.smarthire.backend.features.candidate.entity.CvFile;
 import com.smarthire.backend.features.candidate.repository.CandidateProfileRepository;
 import com.smarthire.backend.features.candidate.repository.CvFileRepository;
 import com.smarthire.backend.infrastructure.storage.FileStorageService;
+import com.smarthire.backend.shared.constants.ApiPaths;
 import com.smarthire.backend.shared.enums.CvFileType;
 import com.smarthire.backend.shared.enums.CvSource;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +82,7 @@ public class CvFileServiceImpl implements CvFileService {
                 .source(cvFile.getSource())
                 .isPrimary(cvFile.getIsPrimary())
                 .createdAt(cvFile.getCreatedAt())
-                .downloadUrl("/api/candidate/profile/cv-files/" + cvFile.getId() + "/download")
+                .downloadUrl(ApiPaths.CANDIDATE_PROFILE + "/cv-files/" + cvFile.getId() + "/download")
                 .build();
     }
 
